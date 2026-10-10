@@ -27,6 +27,38 @@ beforeEach(async()=>{
 });
 afterEach(async()=>{await mf.dispose();});
 describe('real API handler and D1 integration without paid requests',()=>{
+  it('streams acceptance before the provider responds and retains the concurrency lease until completion',async()=>{
+    let complete!:(r:Response)=>void;
+    const provider=vi.fn<typeof fetch>(()=>new Promise<Response>(resolve=>{complete=resolve;}));
+    const response=await handleAnalyze(request({profile,proof:await proof()},{accept:'application/x-ndjson'}),env,provider);
+    expect(response.headers.get('content-type')).toContain('application/x-ndjson');
+    const reader=response.body!.getReader();
+    expect(new TextDecoder().decode((await reader.read()).value)).toContain('"stage":"accepted"');
+    expect((await db.prepare('SELECT leased_until FROM ai_reservations').first<{leased_until:number}>())!.leased_until).toBeGreaterThan(Date.now());
+    complete(Response.json(completion));
+    let data='';while(true){const {done,value}=await reader.read();if(done)break;data+=new TextDecoder().decode(value);}
+    const events=data.trim().split('\n').map(line=>JSON.parse(line));
+    expect(events.map(event=>event.type)).toEqual(['progress','result']);
+    expect(events[0].stage).toBe('verified');
+    expect(events[1].reading.source).toBe('ai');
+    expect((await db.prepare('SELECT leased_until FROM ai_reservations').first<{leased_until:number}>())?.leased_until).toBe(0);
+  },20_000);
+  it('aborts the paid provider and releases the lease when a streaming reader cancels',async()=>{
+    let providerSignal:AbortSignal|undefined;
+    const provider=vi.fn<typeof fetch>((_url,init)=>new Promise((_resolve,reject)=>{providerSignal=init?.signal??undefined;providerSignal?.addEventListener('abort',()=>reject(new DOMException('aborted','AbortError')),{once:true});}));
+    const response=await handleAnalyze(request({profile,proof:await proof()},{accept:'application/x-ndjson'}),env,provider);
+    const reader=response.body!.getReader();await reader.read();await reader.cancel();
+    await vi.waitFor(()=>expect(providerSignal?.aborted).toBe(true));
+    await vi.waitFor(async()=>expect((await db.prepare('SELECT leased_until FROM ai_reservations').first<{leased_until:number}>())?.leased_until).toBe(0));
+    expect(provider).toHaveBeenCalledTimes(1);
+  },20_000);
+  it('reports a real fallback without pretending the unfinished reading is complete',async()=>{
+    const provider=vi.fn<typeof fetch>(async()=>new Response('',{status:503}));
+    const response=await handleAnalyze(request({profile,proof:await proof()},{accept:'application/x-ndjson'}),env,provider);
+    const events=(await response.text()).trim().split('\n').map(line=>JSON.parse(line));
+    expect(events.map(e=>e.stage||e.type)).toEqual(['accepted','retrying','error']);
+    expect(provider).toHaveBeenCalledTimes(2);
+  },20_000);
   it('runs challenge → validated reading, releases lease and stores only short-lived reservation metadata',async()=>{
     const solved=await proof();
     const response=await handleAnalyze(request({profile,proof:solved}),env,vi.fn(async()=>Response.json(completion)));

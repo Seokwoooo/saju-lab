@@ -19,7 +19,7 @@ export function createLocalReading(chart:SajuChart):Reading {
   const t=traits[chart.dayElement];
   const leading=ELEMENTS.filter(e=>chart.elementCounts[e]===Math.max(...Object.values(chart.elementCounts)));
   const dayEvidence=`일간 ${chart.pillars.day.stem}(${chart.pillars.day.stemKo})`;
-  const countEvidence=ELEMENTS.map(e=>`${({wood:'나무',fire:'불',earth:'흙',metal:'쇠',water:'물'})[e]} ${chart.elementCounts[e]}개`).join(' · ');
+  const countEvidence=ELEMENTS.map(e=>`${({wood:'나무',fire:'불',earth:'흙',metal:'쇠',water:'물'})[e]} ${chart.elementCounts[e]}개`).join(', ');
   const year=chart.annual[0]; const plan=yearly[year.element]; const cycle=chart.cycles[0];
   return {source:'local',headline:t.headline,intro:`${t.habit} ${!chart.timeKnown?'태어난 시간을 몰라 확인할 수 있는 성격과 생활 습관을 중심으로 읽었어요.':chart.boundaryUncertain?'시간 경계에서 달라지는 부분은 제외하고 읽었어요.':'내 경험과 맞는 부분을 골라 참고해 주세요.'}`,sections:{
     personality:section(t.headline,`${t.habit}\n${t.example}\n${t.caution}`,t.tip,[dayEvidence,`계절 ${chart.season}`]),

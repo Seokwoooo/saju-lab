@@ -49,3 +49,31 @@ describe('automatic analysis transport', () => {
     expect(calls).toBe(1);
   });
 });
+
+describe('real server milestone stream',()=>{
+  it('does not advance while the provider is pending and reaches 100 only with a result',async()=>{
+    let stream!:ReadableStreamDefaultController<Uint8Array>;
+    const stages:string[]=[];
+    const encoder=new TextEncoder();
+    const fetcher:typeof fetch=async url=>String(url).endsWith('challenge')?Response.json({challenge:{token:'test',difficulty:0,expiresAt:Date.now()+60000}}):new Response(new ReadableStream({start(c){stream=c;}}),{headers:{'content-type':'application/x-ndjson'}});
+    const promise=requestReading(chart.profile,{signal:new AbortController().signal,fetcher,onStatus:s=>stages.push(s)});
+    await vi.waitFor(()=>expect(stream).toBeDefined());
+    stream.enqueue(encoder.encode('{"type":"progress","stage":"accepted"}\n'));
+    await vi.waitFor(()=>expect(stages).toContain('accepted'));
+    expect(stages).not.toContain('complete');
+    // A JSON line may cross network chunks, including inside a Korean UTF-8 character.
+    const result=encoder.encode(JSON.stringify({type:'result',reading})+'\n');
+    stream.enqueue(result.slice(0,66));stream.enqueue(result.slice(66));stream.close();
+    expect((await promise).headline).toBe(reading.headline);
+    expect(stages.at(-1)).toBe('complete');
+  });
+  it('rejects a stream that closes without a result instead of reporting success',async()=>{
+    const fetcher:typeof fetch=async url=>String(url).endsWith('challenge')?Response.json({challenge:{token:'test',difficulty:0,expiresAt:Date.now()+60000}}):new Response('{"type":"progress","stage":"accepted"}\n',{headers:{'content-type':'application/x-ndjson'}});
+    await expect(requestReading(chart.profile,{signal:new AbortController().signal,fetcher})).rejects.toThrow('연결');
+  });
+  it('surfaces a streamed failure without a hidden retry',async()=>{
+    const fetcher=vi.fn<typeof fetch>(async url=>String(url).endsWith('challenge')?Response.json({challenge:{token:'test',difficulty:0,expiresAt:Date.now()+60000}}):new Response('{"type":"error","error":"풀이를 완성하지 못했어요."}\n',{headers:{'content-type':'application/x-ndjson'}}));
+    await expect(requestReading(chart.profile,{signal:new AbortController().signal,fetcher})).rejects.toThrow('완성하지');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+});

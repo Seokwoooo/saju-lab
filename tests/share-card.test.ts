@@ -1,18 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import type { Reading, SajuChart, Compatibility } from '../lib/contracts';
+import { calculateSaju } from '../lib/saju';
 import { CARD_TYPES, createCardContent, getCardDimensions, getCardTextLayout, fitCardText, getElementPercentages } from '../lib/share-card';
 
-const chart = {
+const chart:SajuChart = {
+  ...calculateSaju({year:1990,month:5,day:12,calendar:'solar',leapMonth:false,gender:'unspecified',timeKnown:false,country:'KR'},2026,10),
   dayElement: 'wood', polarity: 'yang', timeKnown: false, boundaryUncertain: true,
   elementCounts: { wood: 2, fire: 1, earth: 1, metal: 0, water: 2 },
   elementTotal: 6, solarDate: '1990-05-12', lunarDate: '1990-04-18',
-  profile: { analysisYear: 2026 }, warnings: ['시간 미상'],
-} as SajuChart;
+  warnings: ['시간 미상'],
+};
 const section = { title: '작은 실험을 시작할 때', body: '새로운 아이디어를 작은 행동으로 옮겨 보세요.', tip: '오늘 한 걸음만.', evidence: ['전문 정보'] };
-const reading = { headline: '천천히, 단단하게 자라는 사람', intro: '내 속도로 자라요.', source: 'local', sections: Object.fromEntries(['personality', 'strengths', 'relationships', 'love', 'career', 'money', 'year', 'cycles', 'advice'].map(k => [k, section])) } as Reading;
+const reading:Reading = { headline: '천천히, 단단하게 자라는 사람', intro: '내 속도로 자라요.', monthly:{headline:'친구에게 먼저 연락해 보세요',opportunity:section,caution:section,action:section}, source: 'local', sections: Object.fromEntries(['personality', 'strengths', 'relationships', 'love', 'career', 'money', 'year', 'cycles', 'advice'].map(k => [k, section])) as Reading['sections'] };
 const compatibility: Compatibility = { title: '서로의 계절이 되어주는 사이', summary: '나누면 더 풍성해지는 관계.', harmony: '함께 자라요.', difference: '속도가 달라요.', advice: '서로의 속도를 존중해요.', elements: ['wood', 'water'], source: 'local' };
 
 describe('sharing privacy and export contract', () => {
+  it('shares the real monthly opportunity with its exact public forecast period and matching artwork',()=>{
+    const card=createCardContent({type:'monthly',chart,reading:{...reading,monthly:{...reading.monthly!,opportunity:{...section,title:'친구와 함께 모임을 준비해 보세요'}}}});
+    expect(card.headline).toBe('친구와 함께 모임을 준비해 보세요');
+    expect(card.period).toBe('2026.10.01 ~ 2026.10.31');
+    expect(card.illustration).toBe('/illustrations/connection.webp');
+    expect(()=>createCardContent({type:'monthly',chart,reading:{...reading,monthly:undefined}})).toThrow('완료');
+  });
   it('omits name by default and never includes raw birth dates, pillars, or evidence', () => {
     for (const type of CARD_TYPES) {
       const card = createCardContent({ type: type.id, chart, reading, compatibility, nickname: '비밀 이름' });
@@ -31,9 +40,9 @@ describe('sharing privacy and export contract', () => {
     expect(createCardContent({ type: 'headline', chart, reading }).headline).toBe(reading.headline);
     for (const type of CARD_TYPES.filter(t => t.id !== 'compatibility')) {
       expect(createCardContent({ type: type.id, chart, reading }).footnote).toContain('시간 미상');
-      expect(createCardContent({ type: type.id, chart, reading }).footnote).toContain('절기·시각 경계');
+      expect(createCardContent({ type: type.id, chart, reading }).footnote).toContain('절기, 시각 경계');
       const historicalBoundary = createCardContent({ type: type.id, chart: { ...chart, timeKnown: true }, reading }).footnote;
-      expect(historicalBoundary).toContain('절기·시각 경계');
+      expect(historicalBoundary).toContain('절기, 시각 경계');
       expect(historicalBoundary).not.toContain('시간 미상');
     }
   });
@@ -53,7 +62,7 @@ describe('sharing privacy and export contract', () => {
     expect(getCardDimensions('portrait')).toEqual({ width: 1080, height: 1350 });
     expect(getCardDimensions('story')).toEqual({ width: 1080, height: 1920 });
   });
-  it('keeps all six layout text boxes inside the paper and above the brand footer', () => {
+  it('keeps all seven layout text boxes inside the paper and above the brand footer', () => {
     for (const card of CARD_TYPES) for (const format of ['portrait', 'story'] as const) for (const nickname of [false, true]) {
       const { height } = getCardDimensions(format);
       for (const box of Object.values(getCardTextLayout(card.id, format, nickname))) {

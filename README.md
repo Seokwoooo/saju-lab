@@ -90,6 +90,8 @@ D1 예약에는 원본 IP 대신 날짜별 HMAC 식별값과 무작위 요청 ID
 
 ## 검증
 
+최신 결과 화면의 날짜 범위, 실제 단계 기반 진행률, 사전 제작 일러스트와 사진 저장 방식은 [화면과 공유 설계](docs/presentation-and-sharing.md)에 설명합니다.
+
 ```sh
 npm test
 npm run typecheck

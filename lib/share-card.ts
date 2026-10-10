@@ -1,13 +1,16 @@
 import { ELEMENTS, ELEMENT_LABELS } from './contracts';
 import type { Compatibility, Element, Reading, SajuChart } from './contracts';
 import { SHARE_HOST } from './site-config';
+import { cleanDisplayText } from './display-text';
+import { monthWindow, selectOpportunityArt } from './reading-presentation';
 
 export const CARD_TYPES = [
+  { id: 'monthly', label: '이번 달의 기회', short: '이번 달', note: '기회와 이유, 할 일까지' },
   { id: 'headline', label: '나를 닮은 한 문장', short: '한 문장', note: '나의 작은 소개서' },
   { id: 'balance', label: '오행 밸런스', short: '밸런스', note: '다섯 빛깔의 나' },
   { id: 'love', label: '연애 스타일', short: '연애', note: '마음을 나누는 방식' },
   { id: 'year', label: '올해의 흐름', short: '올해', note: '이번 계절의 힌트' },
-  { id: 'career', label: '일과 재능', short: '일·재능', note: '내가 빛나는 자리' },
+  { id: 'career', label: '일과 재능', short: '일, 재능', note: '내가 빛나는 자리' },
   { id: 'compatibility', label: '우리의 궁합', short: '궁합', note: '함께 자라는 두 사람' },
 ] as const;
 export type CardType = (typeof CARD_TYPES)[number]['id'];
@@ -24,6 +27,8 @@ export interface CardContent {
   year: number;
   footnote: string;
   source: 'local' | 'ai';
+  period?: string;
+  illustration?: string;
 }
 
 /** This allowlist is the whole export boundary: never spread a chart or birth input. */
@@ -33,24 +38,26 @@ export function createCardContent(options: {
 }): CardContent {
   const { type, chart, reading, compatibility } = options;
   if (type === 'compatibility' && !compatibility) throw new Error('먼저 두 사람의 궁합을 계산해 주세요.');
+  if (type === 'monthly' && (!reading.monthly || !chart.profile.currentMonth)) throw new Error('이번 달 상세 풀이가 완료되면 저장할 수 있어요.');
   const section = type === 'love' ? reading.sections.love : type === 'career' ? reading.sections.career : type === 'year' ? reading.sections.year : reading.sections.personality;
-  const uncertain = [!chart.timeKnown ? '시간 미상' : '', chart.boundaryUncertain ? '절기·시각 경계의 불확실성' : '', type === 'compatibility' && options.compatibilityUncertain ? '상대 정보의 불확실성' : ''].filter(Boolean);
+  const uncertain = [!chart.timeKnown ? '시간 미상' : '', chart.boundaryUncertain ? '절기, 시각 경계의 불확실성' : '', type === 'compatibility' && options.compatibilityUncertain ? '상대 정보의 불확실성' : ''].filter(Boolean);
   return {
     type,
-    headline: cleanText(type === 'compatibility' ? compatibility!.title : type === 'headline' ? reading.headline : type === 'balance' ? '다섯 빛깔로 이루어진 나' : section.title, 160),
-    body: selectCardExcerpt(type === 'compatibility' ? compatibility!.summary : type === 'headline' ? reading.intro : type === 'balance' ? '사주 글자를 다섯 종류로 나누어 센 비율이에요. 성격이나 능력의 점수는 아니에요.' : section.body, type === 'headline' ? 72 : type === 'compatibility' ? 65 : type === 'year' ? 110 : 90),
-    tip: selectCardExcerpt(type === 'compatibility' ? compatibility!.advice : section.tip, 70),
+    headline: cleanText(type==='monthly'?reading.monthly!.opportunity.title:type === 'compatibility' ? compatibility!.title : type === 'headline' ? reading.headline : type === 'balance' ? '다섯 빛깔로 이루어진 나' : section.title, 160),
+    body: selectCardExcerpt(type==='monthly'?reading.monthly!.opportunity.body:type === 'compatibility' ? compatibility!.summary : type === 'headline' ? reading.intro : type === 'balance' ? '사주 글자를 다섯 종류로 나누어 센 비율이에요. 성격이나 능력의 점수는 아니에요.' : section.body, type==='monthly'?170:type === 'headline' ? 72 : type === 'compatibility' ? 65 : type === 'year' ? 110 : 90),
+    tip: selectCardExcerpt(type==='monthly'?reading.monthly!.action.title:type === 'compatibility' ? compatibility!.advice : section.tip, 70),
+    ...(type==='monthly'?{period:monthWindow(chart.profile.currentMonth!).label,illustration:selectOpportunityArt(reading.monthly!.opportunity.title).src}:{}),
     ...(options.showNickname && options.nickname?.trim() ? { nickname: cleanText(options.nickname, 20) } : {}),
     elements: type === 'compatibility' ? [...compatibility!.elements] : [chart.dayElement],
     percentages: getElementPercentages(chart.elementCounts),
     year: chart.profile.analysisYear,
-    footnote: `${uncertain.length ? `${uncertain.join(' · ')} / ` : ''}전통 해석을 바탕으로 한 재미와 자기성찰용 콘텐츠`,
+    footnote: `${uncertain.length ? `${uncertain.join(', ')} / ` : ''}전통 해석을 바탕으로 한 재미와 자기성찰용 콘텐츠`,
     source: type === 'compatibility' ? 'local' : reading.source,
   };
 }
 
 function cleanText(text: string, limit: number) {
-  return Array.from(text.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, limit).join('');
+  return Array.from(cleanDisplayText(text).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, limit).join('');
 }
 /** Prefer complete source sentences; do not invent an AI or static summary. */
 export function selectCardExcerpt(text: string, maxCharacters: number): string {
@@ -75,6 +82,7 @@ export function getCardTextLayout(type: CardType, format: CardFormat, hasNicknam
   const titleY = hasNickname ? 212 : 180;
   const box = (x: number, y: number, width: number, height: number, fontSize: number, maxLines: number, centered = true, minFontSize = fontSize - 8): CardTextBox => ({ x, y, width, height, fontSize, minFontSize, maxLines, centered });
   switch (type) {
+    case 'monthly': return {title:box(98,245+(hasNickname?46:0),884,145,51,2,false,38),body:box(102,871+extra*.61,874,166,30,4,false,25),tip:box(104,1080+extra*.85,864,80,28,2,false,24)};
     case 'headline': return { title: box(145, titleY, 790, 250, 65, 3, true, 44), body: box(200, 987 + extra * .52, 680, 125 + extra * .1, 29, 3, true, 25) };
     case 'balance': return { title: box(115, titleY, 850, 155, 57, 2, true, 41), body: box(125, 1034 + extra * .55, 830, 122, 27, 3, true, 24) };
     case 'love': return { title: box(185, 314, 710, 241, 56, 3, true, 40), body: box(176, 947 + extra * .5, 728, 175 + extra * .1, 29, 4, true, 25) };
@@ -175,13 +183,13 @@ function textBlock(ctx: CanvasRenderingContext2D, text: string, x: number, y: nu
   lines.forEach((line, i) => ctx.fillText(line, x, y + i * size * 1.48));
   return lines.length * size * 1.48;
 }
-function boundedText(ctx: CanvasRenderingContext2D, text: string, box: CardTextBox, serif = false) {
+function boundedText(ctx: CanvasRenderingContext2D, text: string, box: CardTextBox, serif = false, weight = 400) {
   ctx.save(); ctx.beginPath(); ctx.rect(box.x, box.y, box.width, box.height); ctx.clip();
   let size = box.fontSize;
   let lines: string[] = [];
   let ascent = 0; let descent = 0;
   for (;;) {
-    ctx.font = `400 ${size}px "${serif ? 'Saju Serif' : 'Saju Sans'}"`;
+    ctx.font = `${weight} ${size}px "${serif ? 'Saju Serif' : 'Saju Sans'}"`;
     lines = fitCardText(text, value => ctx.measureText(value).width, box.width, box.maxLines);
     const metrics = lines.map(value => ctx.measureText(value));
     ascent = Math.max(size * .8, ...metrics.map(metric => metric.actualBoundingBoxAscent));
@@ -230,7 +238,21 @@ export async function renderShareCard(content: CardContent, format: CardFormat, 
   if (content.nickname) textBlock(ctx, `${content.nickname}의 작은 기록`, 540, 193, 850, 24, 1, { center: true });
   const layout = getCardTextLayout(content.type, format, !!content.nickname);
   const mainElement = content.elements[0];
-  if (content.type === 'headline') {
+  if (content.type === 'monthly') {
+    textBlock(ctx,content.period||'',98,208+(content.nickname?46:0),900,29,1,{weight:600});
+    boundedText(ctx,content.headline,layout.title,false,750);
+    if(!content.illustration || !/^\/illustrations\/[a-z-]+\.webp$/.test(content.illustration))throw new Error('카드 그림을 확인하지 못했어요.');
+    const illustration=await new Promise<HTMLImageElement>((resolve,reject)=>{const img=new Image();img.onload=()=>resolve(img);img.onerror=()=>reject(new Error('카드 그림을 불러오지 못했어요. 다시 저장해 주세요.'));img.src=content.illustration!;});
+    const artY=400+extra*.18+(content.nickname?46:0);const artHeight=400+extra*.34-(content.nickname?46:0);
+    ctx.save();ctx.beginPath();ctx.roundRect(98,artY,884,artHeight,22);ctx.clip();
+    const scale=Math.max(884/illustration.width,artHeight/illustration.height);const iw=illustration.width*scale,ih=illustration.height*scale;
+    ctx.drawImage(illustration,98+(884-iw)/2,artY+(artHeight-ih)/2,iw,ih);ctx.restore();
+    textBlock(ctx,'이렇게 풀이한 이유',102,850+extra*.61,870,24,1,{weight:700});
+    boundedText(ctx,content.body,layout.body);
+    rounded(ctx,84,1040+extra*.85,912,126,15,'#e5eddd');
+    textBlock(ctx,'이번 달에 해볼 일',104,1070+extra*.85,870,21,1,{weight:700});
+    boundedText(ctx,content.tip,layout.tip!);
+  } else if (content.type === 'headline') {
     flower(ctx, 154, 350 + extra * .18, 48, '#e4c0cc'); flower(ctx, 932, 625 + extra * .35, 35, '#c6d8c1');
     boundedText(ctx, content.headline, layout.title, true);
     drawElementCharacter(ctx, mainElement, 330, 490 + extra * .32, 420, -.04);
@@ -286,7 +308,7 @@ export async function renderShareCard(content: CardContent, format: CardFormat, 
   }
   const footerY = height - 167;
   line(ctx, 84, footerY, 996, footerY);
-  textBlock(ctx, `사주랩 · ${content.source === 'ai' ? 'AI 심화 풀이' : '기본 풀이'} · 나를 만나는 작은 연구소`, 84, footerY + 46, 900, 25, 1, { weight: 500 });
+  textBlock(ctx, `사주랩, ${content.source === 'ai' ? '사주풀이' : '기본 풀이'}, 나를 만나는 작은 연구소`, 84, footerY + 46, 900, 25, 1, { weight: 500 });
   textBlock(ctx, SHARE_HOST, 84, footerY + 85, 860, 19, 1);
   textBlock(ctx, content.footnote, 84, footerY + 119, 880, 16, 1, { color: '#586458' });
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('이미지를 만들지 못했어요. 다시 시도해 주세요.')), 'image/png'));

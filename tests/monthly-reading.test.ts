@@ -10,6 +10,14 @@ const point={title:'함께 쓸 돈의 범위를 먼저 정하세요',body:'새�
 const reading={headline:'계획한 일을 먼저 시작하는 사람',intro:'새로운 일을 해보면서 방법을 찾는 편이에요.',monthly:{headline:'함께할 일의 약속을 확인하세요',opportunity:point,caution:point,action:point},sections:Object.fromEntries(SECTION_KEYS.map(key=>[key,{title:'할 일을 정하고 시작하세요',body:'한꺼번에 시작하는 일을 줄이면 마무리에 집중하기 쉬워요.',tip:'이미 시작한 일 하나를 끝내보세요.',evidence:[key==='year'?'annual:2026':'day-element']}]))};
 
 describe('monthly evidence and derived input boundary',()=>{
+  it.each(['AI가 분석한 결과예요.','인공지능이 알려드려요.','언어 모델이 해석해요.'])('rejects implementation labels in public generated reading: %s',body=>{
+    expect(()=>validateReading({...reading,monthly:{...reading.monthly,opportunity:{...point,body}}},profile)).toThrow();
+  });
+  it('normalizes generated middle dots without modifying evidence references',()=>{
+    const result=validateReading({...reading,monthly:{...reading.monthly,opportunity:{...point,title:'일·돈ㆍ관계・약속을 함께 정해보세요'}}},profile);
+    expect(result.monthly?.opportunity.title).toBe('일, 돈, 관계, 약속을 함께 정해보세요');
+    expect(result.monthly?.opportunity.evidence).toEqual(point.evidence);
+  });
   it('accepts a calculated full month and grounded monthly points',()=>{
     expect(parseAnalyzeBody({profile}).profile.currentMonth).toEqual(profile.currentMonth);
     expect(validateReading(reading,profile)).toMatchObject({source:'ai',monthly:reading.monthly});

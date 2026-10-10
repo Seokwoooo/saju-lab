@@ -8,7 +8,7 @@ export function CalendarSettings({ calendar, leapMonth, onChange }: {
 }) {
   const id = useId();
   return <details className="calendar-settings">
-    <summary><span><strong>{calendar === 'solar' ? '양력' : leapMonth ? '음력 · 윤달' : '음력'}</strong>{calendar === 'lunar' && leapMonth ? '로' : '으로'} 보고 있어요 <span className="calendar-change">달력 변경</span></span><ChevronDown size={16} aria-hidden="true" /></summary>
+    <summary><span><strong>{calendar === 'solar' ? '양력' : leapMonth ? '음력, 윤달' : '음력'}</strong>{calendar === 'lunar' && leapMonth ? '로' : '으로'} 보고 있어요 <span className="calendar-change">달력 변경</span></span><ChevronDown size={16} aria-hidden="true" /></summary>
     <div className="calendar-settings-body">
       <p>음력 생일이라면 여기에서 바꿔주세요.</p>
       <fieldset className="choice-field"><legend className="visually-hidden">생일의 달력</legend><div className="segmented">

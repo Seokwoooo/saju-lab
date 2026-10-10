@@ -10,7 +10,7 @@ export interface AIConfig {
   dailyCalls:number;dailyBudgetMicros:number;reserveMicros:number;maxTokens:number;
   promptPrice:number;completionPrice:number;
 }
-export const unavailable=()=>new ApiError(503,'AI_UNAVAILABLE','AI 풀이를 잠시 사용할 수 없어요. 계산된 기본 풀이는 계속 볼 수 있어요.');
+export const unavailable=()=>new ApiError(503,'AI_UNAVAILABLE','상세 풀이를 잠시 사용할 수 없어요. 계산된 기본 풀이는 계속 볼 수 있어요.');
 export function siteOrigin(value?:string):string|null {
   try {
     const url=new URL(value??'');

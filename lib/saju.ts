@@ -35,7 +35,7 @@ function solarDate(input: BirthInput): SolarDate {
   try {
     return lunarToSolar(input.year, input.month, input.day, input.leapMonth);
   } catch {
-    throw new Error('존재하지 않는 음력 날짜 또는 윤달입니다. 평달·윤달과 일자를 다시 확인해 주세요.');
+    throw new Error('존재하지 않는 음력 날짜 또는 윤달입니다. 평달, 윤달과 일자를 다시 확인해 주세요.');
   }
 }
 
@@ -50,7 +50,7 @@ export function validateBirthInput(input: BirthInput): void {
   }
   if (input.calendar === 'solar' && input.leapMonth) throw new Error('윤달은 음력에서만 선택할 수 있어요.');
   if (input.calendar === 'solar' && !isValidSolarDate(input.year, input.month, input.day)) {
-    throw new Error('존재하지 않는 양력 날짜입니다. 월·일과 윤년을 확인해 주세요.');
+    throw new Error('존재하지 않는 양력 날짜입니다. 월, 일과 윤년을 확인해 주세요.');
   }
   const solar = solarDate(input);
   if (solar.year < SUPPORTED_MIN_YEAR || solar.year > SUPPORTED_MAX_YEAR) {
@@ -132,7 +132,7 @@ export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.no
   const candidates = instants.map(instant => calculateAtInstant(instant, direction));
   const first = candidates[0];
   if (candidates.some(candidate => !samePillar(candidate.day, first.day))) {
-    throw new Error('과거 한국 표준시·서머타임 변경으로 출생 시간에 따라 일주가 달라져요. 정확한 시간을 확인해야 계산할 수 있어요. 두 번 나타난 시각은 별도 확인이 필요해요.');
+    throw new Error('과거 한국 표준시, 서머타임 변경으로 출생 시간에 따라 일주가 달라져요. 정확한 시간을 확인해야 계산할 수 있어요. 두 번 나타난 시각은 별도 확인이 필요해요.');
   }
   const yearKnown = candidates.every(candidate => samePillar(candidate.year, first.year));
   const monthKnown = candidates.every(candidate => samePillar(candidate.month, first.month));
@@ -149,7 +149,7 @@ export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.no
     const wall = Date.UTC(value('year'), value('month') - 1, value('day'), value('hour'), value('minute'));
     return wall - instant !== KST_MINUTES * MINUTE_MS;
   });
-  if (correctedHistory) warnings.push('기록된 당시 한국 시각을 역사 표준시·서머타임에 따라 UTC+9 표준시로 환산했어요. 일주·시주가 기록된 날짜·시각과 달라질 수 있어요.');
+  if (correctedHistory) warnings.push('기록된 당시 한국 시각을 역사 표준시, 서머타임에 따라 UTC+9 표준시로 환산했어요. 일주, 시주가 기록된 날짜, 시각과 달라질 수 있어요.');
   const dayStem = first.day.heavenlyStem;
   const pillars: SajuChart['pillars'] = {
     year:yearKnown ? toPillar(first.year, dayStem) : null,
@@ -171,7 +171,7 @@ export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.no
     element:ELEMENT_MAP[getHeavenlyStemElement(cycle.pillar.heavenlyStem)],
     description:`${cycle.age}~${cycle.age + 9}세의 ${cycle.korean} 대운. 시작 나이는 인접 절기까지의 일수를 3으로 나눈 반올림값이며, 성취나 사건을 예측하는 값은 아니에요.`,
   })) ?? [];
-  if (!cycles.length) warnings.push('대운은 정확한 출생 시각과 순행·역행에 쓰는 성별 선택이 모두 있을 때만 계산해요.');
+  if (!cycles.length) warnings.push('대운은 정확한 출생 시각과 순행, 역행에 쓰는 성별 선택이 모두 있을 때만 계산해요.');
   const annual = Array.from({length:5}, (_, index) => annualFor(analysisYear + index));
   const dayElement = pillars.day.stemElement;
   const polarity = getHeavenlyStemYinYang(dayStem) === '양' ? 'yang' : 'yin';
@@ -181,14 +181,14 @@ export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.no
     solarDate:dateText(solar), lunarDate:`${lunar.year}-${lunar.isLeapMonth ? '윤' : ''}${pad(lunar.month)}-${pad(lunar.day)}`,
     pillars, dayElement, polarity, elementCounts,
     elementTotal:Object.values(elementCounts).reduce((sum, count) => sum + count, 0),
-    elementMethod:'확정된 기둥의 천간·지지 글자를 각각 1개로 세는 단순 오행 개수. 지장간·계절 가중치·신강약은 포함하지 않아요.',
+    elementMethod:'확정된 기둥의 천간, 지지 글자를 각각 1개로 세는 단순 오행 개수. 지장간, 계절 가중치, 신강약은 포함하지 않아요.',
     tenGodCounts, season, cycles, annual, warnings, boundaryUncertain, timeKnown:input.timeKnown,
     conventions:[
       '대한민국 출생 기록을 IANA Asia/Seoul 역사 시각으로 해석한 뒤 UTC+9 표준시로 환산해요.',
       '연주는 입춘 순간, 월주는 12개 절의 절입 순간에 바뀌어요. 절입표는 분 단위예요.',
       '일주와 시주는 환산된 UTC+9 표준시 기준. 일 경계는 00:00이며 23:00에는 일주를 바꾸지 않아요.',
-      '출생지 경도·진태양시·균시차 보정은 적용하지 않아요. 다른 학파의 결과와 다를 수 있어요.',
-      '십신 개수는 일간을 제외한 천간과 지지 본기의 관계를 세며, 지장간은 잔기·중기·본기 순으로 표시해요.',
+      '출생지 경도, 진태양시, 균시차 보정은 적용하지 않아요. 다른 학파의 결과와 다를 수 있어요.',
+      '십신 개수는 일간을 제외한 천간과 지지 본기의 관계를 세며, 지장간은 잔기, 중기, 본기 순으로 표시해요.',
     ],
     profile:{
       version:1, dayElement, polarity, elementCounts:{...elementCounts}, tenGodCounts:{...tenGodCounts},

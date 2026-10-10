@@ -73,14 +73,14 @@ function failureDiagnostics(error:unknown,requestId:string,config:AIConfig,fallb
 interface Diagnostics {requestId:string;model:string;provider:string;byok:boolean;generationId:string;cost:number;upstreamCost:number|null}
 function diagnostics(value:Diagnostics){console.info(JSON.stringify(value));}
 async function bounded<T>(operation:(signal:AbortSignal)=>Promise<T>,timeoutMs:number,parent?:AbortSignal):Promise<T> {
-  if(parent?.aborted) throw new ApiError(499,'CLIENT_CANCELLED','AI 풀이를 취소했어요.');
+  if(parent?.aborted) throw new ApiError(499,'CLIENT_CANCELLED','상세 풀이를 취소했어요.');
   const controller=new AbortController();
   let timer:ReturnType<typeof setTimeout>|undefined;
   let abort:()=>void=()=>{};
   const stopped=new Promise<never>((_,reject)=>{
-    abort=()=>{controller.abort();reject(new ApiError(499,'CLIENT_CANCELLED','AI 풀이를 취소했어요.'));};
+    abort=()=>{controller.abort();reject(new ApiError(499,'CLIENT_CANCELLED','상세 풀이를 취소했어요.'));};
     parent?.addEventListener('abort',abort,{once:true});
-    timer=setTimeout(()=>{controller.abort();reject(new ApiError(504,'AI_TIMEOUT','AI 응답이 늦어 기본 풀이를 보여드려요.'));},timeoutMs);
+    timer=setTimeout(()=>{controller.abort();reject(new ApiError(504,'AI_TIMEOUT','풀이 응답이 늦어 기본 풀이를 보여드려요.'));},timeoutMs);
   });
   try {return await Promise.race([operation(controller.signal),stopped]);}
   finally {clearTimeout(timer);parent?.removeEventListener('abort',abort);}
@@ -118,12 +118,13 @@ async function lane(profile:AIProfile,config:AIConfig,requestId:string,fallback:
     return reading;
   },fallback?25_000:45_000,parent);
 }
-export async function runReading(profile:AIProfile,config:AIConfig,requestId:string,signal?:AbortSignal,fetcher:typeof fetch=fetch):Promise<Reading> {
+export async function runReading(profile:AIProfile,config:AIConfig,requestId:string,signal?:AbortSignal,fetcher:typeof fetch=fetch,onRetry?:()=>void):Promise<Reading> {
   makeProviderRequest(profile,config); // Refuse unsafe price/token configuration before any paid call.
   for(const fallback of [false,true]) {
-    if(signal?.aborted) throw new ApiError(499,'CLIENT_CANCELLED','AI 풀이를 취소했어요.');
+    if(signal?.aborted) throw new ApiError(499,'CLIENT_CANCELLED','상세 풀이를 취소했어요.');
+    if(fallback)onRetry?.();
     try {return await lane(profile,config,requestId,fallback,signal,fetcher);}
-    catch(error){failureDiagnostics(error,requestId,config,fallback);if(signal?.aborted || (error instanceof ApiError && error.code==='CLIENT_CANCELLED'))throw new ApiError(499,'CLIENT_CANCELLED','AI 풀이를 취소했어요.');}
+    catch(error){failureDiagnostics(error,requestId,config,fallback);if(signal?.aborted || (error instanceof ApiError && error.code==='CLIENT_CANCELLED'))throw new ApiError(499,'CLIENT_CANCELLED','상세 풀이를 취소했어요.');}
   }
-  throw new ApiError(502,'AI_FAILED','AI 풀이를 완성하지 못했어요. 계산된 기본 풀이는 그대로 볼 수 있어요.');
+  throw new ApiError(502,'AI_FAILED','상세 풀이를 완성하지 못했어요. 계산된 기본 풀이는 그대로 볼 수 있어요.');
 }

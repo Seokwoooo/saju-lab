@@ -73,21 +73,23 @@ export function safeValidationIssues(issues:z.ZodIssue[]):SafeValidationIssue[] 
 export class InvalidAIOutputError extends ApiError {
   readonly validationIssues:SafeValidationIssue[];
   constructor(issues:z.ZodIssue[]) {
-    super(502,'INVALID_AI_OUTPUT','AI 풀이의 형식을 확인할 수 없어요. 기본 풀이는 그대로 볼 수 있어요.');
+    super(502,'INVALID_AI_OUTPUT','상세 풀이의 형식을 확인할 수 없어요. 기본 풀이는 그대로 볼 수 있어요.');
     this.validationIssues=safeValidationIssues(issues);
   }
 }
 type ClaimRule='PILLAR_OR_BIRTH_INFORMATION'|'EXACT_DATE_OR_TIME'|'GUARANTEED_FINANCIAL_OUTCOME'|'MEDICAL_CLAIM'|'FATALISTIC_CLAIM'|'PROHIBITED_TERMINOLOGY'|'UNSUPPORTED_YEAR'|'ELEMENT_COUNT_MISMATCH'|'DAY_ELEMENT_MISMATCH'|'ANNUAL_ELEMENT_MISMATCH'|'TEN_GOD_COUNT_MISMATCH'|'OPAQUE_LANGUAGE'|'UNSUPPORTED_AGE_PERIOD';
 export class UnsupportedAIClaimError extends ApiError {
   readonly validationIssues:SafeValidationIssue[];
-  constructor(path:string,rule:ClaimRule,message='AI 풀이에 확인되지 않은 내용이 있어요. 기본 풀이는 그대로 볼 수 있어요.') {
+  constructor(path:string,rule:ClaimRule,message='상세 풀이에 확인되지 않은 내용이 있어요. 기본 풀이는 그대로 볼 수 있어요.') {
     super(502,'UNSUPPORTED_AI_CLAIM',message);
     this.validationIssues=[{path,code:'custom',rule}];
   }
 }
 const koreanText=(max:number)=>z.string().trim().min(2).max(max).regex(/[가-힣]/)
   .refine(value=>!/[\u3400-\u9fff]/.test(value),{message:'No Hanja',params:{rule:'NO_HANJA'}})
-  .refine(value=>!/[<>]|```|https?:\/\/|\b(?:javascript|data):/i.test(value),{message:'Plain text only',params:{rule:'NO_MARKUP_OR_LINKS'}});
+  .refine(value=>!/\bAI\b|인공지능|언어\s*모델|OpenRouter/i.test(value),{message:'No implementation copy',params:{rule:'NO_IMPLEMENTATION_COPY'}})
+  .refine(value=>!/[<>]|```|https?:\/\/|\b(?:javascript|data):/i.test(value),{message:'Plain text only',params:{rule:'NO_MARKUP_OR_LINKS'}})
+  .transform(value=>value.replace(/\s*[·ㆍ・]\s*/g,', '));
 const sectionSchema=z.object({title:koreanText(OUTPUT_TEXT_LIMITS.title),body:koreanText(OUTPUT_TEXT_LIMITS.body),tip:koreanText(OUTPUT_TEXT_LIMITS.tip),evidence:z.array(z.string().min(1).max(40)).min(1).max(5)}).strict();
 const readingSchema=z.object({headline:koreanText(OUTPUT_TEXT_LIMITS.headline),intro:koreanText(OUTPUT_TEXT_LIMITS.intro),sections:z.object(Object.fromEntries(SECTION_KEYS.map(key=>[key,sectionSchema]))).strict()}).strict();
 const monthlyPointSchema=z.object({title:koreanText(60),body:koreanText(250),evidence:z.array(z.string().min(1).max(40)).min(2).max(5)}).strict();
@@ -104,7 +106,7 @@ export function validateReading(value:unknown,profile:AIProfile):Reading {
   const allowed=new Set(evidenceIds(profile));
   for(const key of SECTION_KEYS) {
     const section=reading.sections[key];
-    if(section.evidence.some(id=>!allowed.has(id))) throw new ApiError(502,'INVALID_AI_EVIDENCE','AI 풀이의 계산 근거를 확인할 수 없어요.');
+    if(section.evidence.some(id=>!allowed.has(id))) throw new ApiError(502,'INVALID_AI_EVIDENCE','상세 풀이의 계산 근거를 확인할 수 없어요.');
     if(key==='year' && !section.evidence.some(id=>id.startsWith('annual:'))) throw new ApiError(502,'INVALID_AI_EVIDENCE','올해 풀이의 근거를 확인할 수 없어요.');
     if(key==='cycles' && profile.cycles.length && !section.evidence.some(id=>id.startsWith('cycle:'))) throw new ApiError(502,'INVALID_AI_EVIDENCE','시기 풀이의 근거를 확인할 수 없어요.');
   }
@@ -125,14 +127,14 @@ export function validateReading(value:unknown,profile:AIProfile):Reading {
   const terminology=/일간|십신|십성|천간|간지|년주|월주|시주|대운|오행|음양|격국|용신|일주(?!일)|지지\s*의\s*기운/.exec(text);
   if(terminology)throw claimError(terminology.index,'PROHIBITED_TERMINOLOGY');
   const allowedYears=new Set(profile.annual.map(a=>a.year));
-  for(const match of text.matchAll(/(\d{4})\s*년/g)) if(!allowedYears.has(Number(match[1]))) throw claimError(match.index,'UNSUPPORTED_YEAR','AI 풀이에 없는 연도가 있어요.');
+  for(const match of text.matchAll(/(\d{4})\s*년/g)) if(!allowedYears.has(Number(match[1]))) throw claimError(match.index,'UNSUPPORTED_YEAR','상세 풀이에 없는 연도가 있어요.');
   const elementWords:Record<string,typeof ELEMENTS[number]>={나무:'wood',불:'fire',흙:'earth',쇠:'metal',물:'water'};
-  for(const match of text.matchAll(/(나무|불|흙|쇠|물)\s*(?:기운|오행)?\s*(?:은|는|이|가|:)?\s*(\d+)\s*개/g)) if(profile.elementCounts[elementWords[match[1]]]!==Number(match[2])) throw claimError(match.index,'ELEMENT_COUNT_MISMATCH','AI 풀이의 오행 수가 계산과 달라요.');
-  for(const match of text.matchAll(/일간(?:은|이|의)?\s*(나무|불|흙|쇠|물)(?:의|\s|이에요|입니다|기운)/g)) if(elementWords[match[1]]!==profile.dayElement) throw claimError(match.index,'DAY_ELEMENT_MISMATCH','AI 풀이의 일간이 계산과 달라요.');
-  for(const match of text.matchAll(/(\d{4})\s*년(?:은|의|에는|에)?\s*(나무|불|흙|쇠|물)(?:의|\s|기운)/g)) if(profile.annual.find(item=>item.year===Number(match[1]))?.element!==elementWords[match[2]]) throw claimError(match.index,'ANNUAL_ELEMENT_MISMATCH','AI 풀이의 연도 기운이 계산과 달라요.');
+  for(const match of text.matchAll(/(나무|불|흙|쇠|물)\s*(?:기운|오행)?\s*(?:은|는|이|가|:)?\s*(\d+)\s*개/g)) if(profile.elementCounts[elementWords[match[1]]]!==Number(match[2])) throw claimError(match.index,'ELEMENT_COUNT_MISMATCH','상세 풀이의 오행 수가 계산과 달라요.');
+  for(const match of text.matchAll(/일간(?:은|이|의)?\s*(나무|불|흙|쇠|물)(?:의|\s|이에요|입니다|기운)/g)) if(elementWords[match[1]]!==profile.dayElement) throw claimError(match.index,'DAY_ELEMENT_MISMATCH','상세 풀이의 일간이 계산과 달라요.');
+  for(const match of text.matchAll(/(\d{4})\s*년(?:은|의|에는|에)?\s*(나무|불|흙|쇠|물)(?:의|\s|기운)/g)) if(profile.annual.find(item=>item.year===Number(match[1]))?.element!==elementWords[match[2]]) throw claimError(match.index,'ANNUAL_ELEMENT_MISMATCH','상세 풀이의 연도 기운이 계산과 달라요.');
   for(const god of TEN_GODS) {
     const pattern=new RegExp(`${god}\\s*(?:은|는|이|가|:)?\\s*(\\d+)\\s*개`,'g');
-    for(const match of text.matchAll(pattern)) if((profile.tenGodCounts[god]??0)!==Number(match[1])) throw claimError(match.index,'TEN_GOD_COUNT_MISMATCH','AI 풀이의 십성 수가 계산과 달라요.');
+    for(const match of text.matchAll(pattern)) if((profile.tenGodCounts[god]??0)!==Number(match[1])) throw claimError(match.index,'TEN_GOD_COUNT_MISMATCH','상세 풀이의 십성 수가 계산과 달라요.');
   }
   const opaque=/리듬|빛깔|기운|에너지|구체화|실용성|재량|역량|(?:타고난|나의|당신의|서로의)\s*결(?:을|이|은|과|도)/.exec(text);
   if(opaque)throw claimError(opaque.index,'OPAQUE_LANGUAGE');

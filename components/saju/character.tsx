@@ -56,6 +56,6 @@ export function Garden() {
     <Character element="wood" className="garden-wood" decorative /><Character element="fire" className="garden-fire" decorative /><Character element="earth" className="garden-earth" decorative /><Character element="metal" className="garden-metal" decorative /><Character element="water" className="garden-water" decorative />
     <Flower className="garden-flower one" /><Flower className="garden-flower two" /><Flower className="garden-flower three" />
     <span className="garden-spark spark-one">✧</span><span className="garden-spark spark-two">✧</span>
-    <div className="garden-ticket"><span>성격 · 연애 · 일과 돈 · 올해 운세</span><strong>내 사주를 한눈에.</strong><span>SAJU LAB by LUCIAN LABS</span></div>
+    <div className="garden-ticket"><span>성격, 연애, 일과 돈, 올해 운세</span><strong>내 사주를 한눈에.</strong><span>SAJU LAB by LUCIAN LABS</span></div>
   </div>;
 }
