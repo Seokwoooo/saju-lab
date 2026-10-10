@@ -78,3 +78,49 @@
   .input-heading h1{font-size:30px}.input-heading>.element-friend{width:90px}.input-heading>p:last-of-type{max-width:calc(100% - 95px)}
 }
 @media(max-width:360px){.hero h1{font-size:44px}.hero-topics{font-size:10px;gap:8px 10px}.site-header nav{font-size:11px;gap:10px}.brand-mark{width:31px;height:31px}.brand>span:last-child{font-size:20px}.hero-small{font-size:9px}.input-heading h1{font-size:27px}.reading-method{margin-left:16px;margin-right:16px}}
+
+/* One question at a time, with uncommon calendar options kept secondary. */
+.input-heading.progressive-heading{padding:22px 0 28px}
+.progressive-heading h1{font-size:31px;margin-top:13px;line-height:1.5}
+.progressive-heading>p:last-of-type{max-width:none;font-size:14px;margin-top:11px}
+.birth-form.progressive-form{padding:30px 36px 23px}
+.step-topline{display:flex;align-items:center;justify-content:space-between;min-height:24px;font-size:12px;color:#5c6953}
+.step-back{display:inline-flex;align-items:center;gap:5px;padding:0;font-size:12px}
+.step-count{font-variant-numeric:tabular-nums;font-weight:650;color:#39473c}.step-count>span{font-weight:400;color:#697366}
+.step-progress{list-style:none;display:flex;gap:6px;padding:0;margin:15px 0 28px}
+.step-progress li{height:3px;flex:1;border-radius:4px;background:#e8e9df}.step-progress li.reached{background:#72896a}
+.step-question h2{font-family:"Saju Serif",serif;font-size:29px;letter-spacing:-.045em;line-height:1.4;outline:none}
+.step-question h2:focus-visible{outline:2px solid #72896a;outline-offset:5px}
+.step-recap{font-size:11px;color:#5c6953;margin-bottom:11px;overflow-wrap:anywhere}
+.step-help{font-size:13px;color:#5c6953;line-height:1.8;margin-top:12px}
+.step-question .step-field{margin-top:26px;margin-bottom:0}
+.step-field>label{font-size:12px;margin-bottom:9px}.step-field>input{font-size:18px;min-height:57px;padding:15px;letter-spacing:.025em;border-color:#b8c4af;background:#fffefa}
+.step-field input::placeholder{font-size:15px;letter-spacing:0;color:#72776b}
+.step-field .date-entry{font-variant-numeric:tabular-nums;letter-spacing:.12em}
+.step-field .field-hint{font-size:11px;line-height:1.85;margin-top:10px}
+.progressive-form .step-next{width:100%;margin-top:26px;min-height:52px;font-size:15px}
+.step-choice-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.step-option{display:flex;align-items:center;justify-content:space-between;gap:12px;text-align:left;min-height:62px;padding:18px 19px;border:1px solid #c9d0bd;border-radius:9px;background:#fffefa;font-size:16px;transition:background .15s,border-color .15s}
+.step-option:hover,.step-option.selected{background:#edf1e6;border-color:#819b75}
+.step-option small{display:block;font-size:12px;color:#5c6953;margin-top:4px}
+.choice-guidance{font-size:11px;color:#5c6953;margin:22px 0 11px}
+.step-skip{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;font-size:12px;color:#5c6953;padding:14px 5px;margin-top:6px;text-decoration:underline;text-decoration-color:#bac5b0;text-underline-offset:5px}
+.step-time-options{display:grid;gap:12px;margin-top:25px}
+.step-time-options .time-unknown{background:#eef1e7}
+.calendar-settings{border-top:1px solid #e1e4d8;margin-top:28px;padding-top:17px;text-align:left}
+.calendar-settings>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;color:#5c6953;list-style:none;cursor:pointer;min-height:29px}
+.calendar-settings>summary::-webkit-details-marker{display:none}.calendar-settings summary strong{color:#465a40;font-weight:600}
+.calendar-settings summary>.lucide{transition:transform .2s}.calendar-settings[open] summary>.lucide{transform:rotate(180deg)}
+.calendar-change{font-size:10px;margin-left:6px;text-decoration:underline;text-underline-offset:3px}
+.calendar-settings-body{padding:14px 0 0}.calendar-settings-body>p{font-size:12px;color:#5c6953;margin-bottom:12px}.calendar-settings-body .choice-field{margin:0}.calendar-settings-body .leap-check{margin-top:14px}
+.step-privacy{display:flex;justify-content:center;align-items:center;gap:6px;font-size:10px;color:#5c6953;margin-top:24px}
+.progressive-form .error-note{font-size:12px;margin-top:20px}
+@media(max-width:600px){
+  .input-page:has(.progressive-form){padding-top:17px;padding-bottom:38px}
+  .input-heading.progressive-heading{padding:17px 0 24px}
+  .progressive-heading h1{font-size:26px;margin-top:12px}.progressive-heading>p:last-of-type{font-size:13px;margin-top:10px;max-width:none}
+  .birth-form.progressive-form{padding:25px 23px 20px}.step-progress{margin-bottom:26px}.step-question h2{font-size:26px}
+  .step-help{font-size:13px;margin-top:10px}.step-question .step-field{margin-top:24px}.step-field>input{font-size:18px;min-height:55px}.step-field>label{font-size:12px}.step-field .field-hint{font-size:11px}
+  .step-choice-pair{gap:10px}.step-option{font-size:15px;padding:16px;min-height:59px}.step-option small{font-size:11px}.step-skip{font-size:12px}.calendar-settings>summary{font-size:12px}.calendar-change{font-size:10px}.step-privacy{font-size:10px}
+}
+@media(max-width:360px){.progressive-heading h1{font-size:23px}.birth-form.progressive-form{padding:23px 19px 18px}.step-question h2{font-size:24px}.step-option{padding:15px}.step-field input::placeholder{font-size:13px}.calendar-change{display:block;margin:0;font-size:10px}.step-recap{font-size:10px}}
