@@ -46,9 +46,9 @@ export function BirthFields({ initial, label, onChange }: { initial?: BirthInput
 export function BirthForm({ initial, onSubmit, error, busy = false }: { initial?: BirthInput; onSubmit: (input: BirthInput) => void; error?: string; busy?: boolean }) {
   const [input, setInput] = useState<BirthInput | null>(initial || null);
   return <form className="birth-form paper" onSubmit={event => { event.preventDefault(); if (input) onSubmit(input); }}>
-    <BirthFields initial={initial} label="나의 이야기" onChange={setInput} />
+    <BirthFields initial={initial} label="나의 출생정보" onChange={setInput} />
     {error && <div className="error-note" role="alert"><Info size={18} /><p>{error}</p></div>}
-    <button className="button primary submit-button" type="submit" disabled={!input || busy}>{busy ? '계산하고 있어요' : '나의 사주 만나기'}<ArrowRight size={19} aria-hidden="true" /></button>
+    <button className="button primary submit-button" type="submit" disabled={!input || busy}>{busy ? '계산하고 있어요' : '내 사주 무료로 보기'}<ArrowRight size={19} aria-hidden="true" /></button>
     <p className="form-privacy">입력 정보는 내 브라우저에서 계산하고 저장하지 않아요.<br />AI 풀이에는 출생일·시간·닉네임을 보내지 않아요.</p>
   </form>;
 }

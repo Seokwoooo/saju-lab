@@ -50,12 +50,12 @@ export function Flower({ className = '' }: { className?: string }) {
 }
 
 export function Garden() {
-  return <div className="garden" aria-label="나무, 불, 흙, 쇠, 물 다섯 오행 친구들이 함께 있는 작은 정원" role="img">
+  return <div className="garden" aria-label="사주를 이루는 나무, 불, 흙, 쇠, 물 다섯 오행 친구들" role="img">
     <div className="garden-grid" /><div className="garden-orbit" /><span className="garden-sun" /><div className="garden-ground" />
-    <span className="garden-label">a little garden of you</span>
+    <span className="garden-label">나의 사주, 다섯 기운의 이야기</span>
     <Character element="wood" className="garden-wood" decorative /><Character element="fire" className="garden-fire" decorative /><Character element="earth" className="garden-earth" decorative /><Character element="metal" className="garden-metal" decorative /><Character element="water" className="garden-water" decorative />
     <Flower className="garden-flower one" /><Flower className="garden-flower two" /><Flower className="garden-flower three" />
     <span className="garden-spark spark-one">✧</span><span className="garden-spark spark-two">✧</span>
-    <div className="garden-ticket"><span>모든 사람에게</span><strong>자기만의 계절이 있어요.</strong><span>SAJU LAB / EST. 2026</span></div>
+    <div className="garden-ticket"><span>성격 · 연애 · 일과 돈 · 올해 운세</span><strong>내 사주를 한눈에.</strong><span>SAJU LAB by LUCIAN LABS</span></div>
   </div>;
 }
