@@ -1,3 +1,5 @@
+import {hash,dailyIpHash} from '../lib/server/challenge';
+import {OWNER_COOKIE} from '../lib/server/owner-device';
 import { Miniflare } from 'miniflare';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { handleAnalyze, handleChallenge, handleStatus } from '../lib/server/handlers';
@@ -94,6 +96,25 @@ describe('real API handler and D1 integration without paid requests',()=>{
     expect(await db.prepare('SELECT leased_until,reserved_microusd FROM ai_reservations').first()).toEqual({leased_until:0,reserved_microusd:100_000});
     expect(fetcher).toHaveBeenCalledTimes(1);
   },20_000);
+  it('only a verified owner cookie admits a request after the IP daily cap',async()=>{
+    const now=Date.now(),day=new Date(now).toISOString().slice(0,10);
+    const ipHash=await dailyIpHash(env.AI_IP_HMAC_KEY!,'203.0.113.11',now);
+    for(let i=0;i<8;i++)await db.prepare('INSERT INTO ai_reservations VALUES (?,?,?,?,?,?,?,?)').bind(`seed-${i}`,`seed-proof-${i}`,ipHash,day,now-120000,now+86400000,0,100000).run();
+    const token='T'.repeat(43);env.OWNER_DEVICE_TOKEN_HASH=await hash(token);
+    const solved=await proof();const provider=vi.fn<typeof fetch>(async()=>Response.json(completion));
+    const ordinary=await handleAnalyze(request({profile,proof:solved}),env,provider);
+    expect(await ordinary.json()).toMatchObject({code:'IP_DAY_LIMIT'});
+    const forged=await handleAnalyze(request({profile,proof:solved},{cookie:`${OWNER_COOKIE}=${'X'.repeat(43)}`}),env,provider);
+    expect(forged.status).toBe(429);expect(provider).not.toHaveBeenCalled();
+    const owner=await handleAnalyze(request({profile,proof:solved},{cookie:`${OWNER_COOKIE}=${token}`}),env,provider);
+    expect(owner.status).toBe(200);expect(await owner.json()).toMatchObject({reading:{source:'ai'}});
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect((await db.prepare('SELECT COUNT(*) AS n FROM ai_reservations WHERE ip_hash = ?').bind(ipHash).first<{n:number}>())?.n).toBe(8);
+    expect((await db.prepare('SELECT SUM(reserved_microusd) AS n FROM ai_reservations').first<{n:number}>())?.n).toBe(900000);
+    env.AI_ENABLED='false';
+    expect((await handleAnalyze(request({profile,proof:solved},{cookie:`${OWNER_COOKIE}=${token}`}),env,provider)).status).toBe(503);
+    expect(provider).toHaveBeenCalledTimes(1);
+  },20000);
   it('fails availability closed if schema is missing even with configured secrets',async()=>{
     await db.prepare('DROP TABLE ai_reservations').run();
     expect(await (await handleStatus(env)).json()).toEqual({available:false});

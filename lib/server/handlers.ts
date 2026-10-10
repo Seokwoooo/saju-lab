@@ -5,6 +5,7 @@ import { createChallenge, dailyIpHash, hash, verifyChallenge } from './challenge
 import { cleanupReservations, releaseJob, reserveJob } from './limits';
 import { makeProviderRequest, runReading } from './ai';
 import type { AnalysisEvent } from '../analysis-progress';
+import { isOwnerDevice } from './owner-device';
 const responseHeaders={'cache-control':'no-store, max-age=0','content-type':'application/json; charset=utf-8','x-content-type-options':'nosniff','referrer-policy':'no-referrer','vary':'Origin','cross-origin-resource-policy':'same-origin'};
 function json(value:unknown,status=200,retryAfter?:number){return new Response(JSON.stringify(value),{status,headers:{...responseHeaders,...(retryAfter?{'retry-after':String(retryAfter)}:{})}});}
 function failure(error:unknown){const known=error instanceof ApiError?error:unavailable();return json({error:known.message,code:known.code,...(known.retryAfter?{retryAfter:known.retryAfter}:{})},known.status,known.retryAfter);}
@@ -46,7 +47,9 @@ export async function handleAnalyze(request:Request,env:ServerEnv,fetcher:typeof
     if(request.signal.aborted)throw new ApiError(499,'CLIENT_CANCELLED','상세 풀이를 취소했어요.');
     const requestId=crypto.randomUUID();
     const previousIpHash=await dailyIpHash(config.hmacKey,ip,now-86_400_000);
-    const result=await reserveJob(config.db,{requestId,challengeHash:await hash(proof.token),ipHash,previousIpHash,now,dailyCalls:config.dailyCalls,dailyBudgetMicros:config.dailyBudgetMicros,reserveMicros:config.reserveMicros});
+    const ownerCountBypass=await isOwnerDevice(request,env);
+    const reservationIp=ownerCountBypass?await dailyIpHash(config.hmacKey,'owner-device',now):ipHash;
+    const result=await reserveJob(config.db,{requestId,challengeHash:await hash(proof.token),ipHash:reservationIp,previousIpHash,now,dailyCalls:config.dailyCalls,dailyBudgetMicros:config.dailyBudgetMicros,reserveMicros:config.reserveMicros,ownerCountBypass});
     if(!result.ok)throw new ApiError(429,result.code,'풀이 요청 한도에 도달했어요. 기본 풀이는 계속 볼 수 있어요.',result.retryAfter);
     reservationId=requestId;
     if(request.headers.get('accept')?.includes('application/x-ndjson')) {

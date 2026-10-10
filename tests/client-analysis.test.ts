@@ -31,7 +31,7 @@ describe('automatic analysis transport', () => {
   it('surfaces a provider limit once without silently retrying or pretending it is AI output',async()=>{
     let calls=0;
     const fetcher:typeof fetch=async()=>{calls++; return Response.json({error:'잠시 후 다시 시도해 주세요.',retryAfter:60},{status:429});};
-    await expect(requestReading(chart.profile,{signal:new AbortController().signal,fetcher})).rejects.toThrow('60초');
+    await expect(requestReading(chart.profile,{signal:new AbortController().signal,fetcher})).rejects.toThrow('약 1분 후');
     expect(calls).toBe(1);
   });
   it('bounds a stalled request and aborts the network operation',async()=>{

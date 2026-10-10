@@ -119,3 +119,9 @@ Sites 배포에는 해당 플러그인의 빌드·공개 절차를 사용합니�
 프로젝트 코드: [MIT © 2026 Lucian Labs](LICENSE). 외부 라이브러리·글꼴은 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)의 별도 조건을 따릅니다. 고운바탕·Pretendard는 SIL Open Font License 1.1이며 폰트와 고지를 함께 보존해야 합니다.
 
 KASI·IANA·고정 버전 만세력·비교 라이브러리의 범위는 [엔진 검증](docs/engine-validation.md)에, 제공자·비용·데이터 조건은 [AI 운영 계약](docs/ai-operations.md)에 기록합니다.
+
+### Owner browser exception
+
+`OWNER_DEVICE_TOKEN_HASH` is an optional base64url SHA-256 hash of a cryptographically random 32-byte token. Register that token once in the chosen browser with a same-origin JSON POST to `/api/owner/device` (body: `{token}`). The server sets `__Host-saju_owner` with Secure, HttpOnly, SameSite=Strict and a one-year maximum age. Never use a query parameter, localStorage, a committed token, or an IP allowlist. GET reports only whether the browser is authenticated. DELETE removes the local grant; rotating/removing the environment hash revokes all copies immediately. Public visitors receive no owner cookie.
+
+Only this authenticated browser skips IP minute/day and global call-count admission limits. Proof of work, proof replay protection, emergency disable, the atomic daily monetary reservation cap and global concurrency remain enforced. Reservations still count towards the service-wide budget and volume. Owner reservations use a separate daily HMAC identifier so they cannot consume the personal quota of other visitors on the same Wi-Fi. Cookie access means browser-profile access, not a guarantee of physical hardware or person identity. Browser cloning or credential theft requires revoking the hash.

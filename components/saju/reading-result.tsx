@@ -5,9 +5,10 @@ import { ArrowDown, ArrowUpRight, BookOpen, CalendarDays, ChevronDown, Sparkles,
 import { ELEMENTS, ELEMENT_LABELS, SECTION_KEYS } from '@/lib/contracts';
 import type { Reading, SajuChart, SectionKey } from '@/lib/contracts';
 import { ELEMENT_COLORS, getElementPercentages } from '@/lib/share-card';
-import { annualWindow, cleanDisplayText, monthWindow, selectOpportunityArt } from '@/lib/reading-presentation';
+import { annualWindow, cleanDisplayText, monthWindow } from '@/lib/reading-presentation';
 import { ANALYSIS_LABELS, estimatedProgress, type AnalysisStage } from '@/lib/analysis-progress';
 import { Character } from './character';
+import { selectFortuneArt } from '@/lib/fortune-art';
 import { selectedEvidence } from '@/lib/reading-evidence';
 
 const sectionLabels:Record<SectionKey,string>={personality:'나의 성격',strengths:'강점과 주의점',relationships:'인간관계',love:'연애 성향',career:'일하는 방식',money:'돈 쓰는 습관',year:'올해 운세',cycles:'나이별 운세',advice:'나에게 맞는 조언'};
@@ -25,20 +26,34 @@ function CalculatedReason({chart,point}:{chart:SajuChart;point:{body:string;evid
   return <div className="month-reason calculated-reason"><h3>이렇게 풀이한 이유</h3><p className="reason-basis"><strong>{basis.fact}</strong> 기준으로 비교했어요.</p><ol className="reason-facts">{facts.map(fact=><li key={fact.id}><span className="reason-fact-label">{fact.kind==='month'?'해당 기간의 사주':'내 사주의 실제 구성'}</span>{fact.period&&<time className="reason-period">{fact.period} (한국 시간)</time>}<strong>{fact.fact}</strong><p>{fact.meaning}</p></li>)}</ol><div className="reason-conclusion"><span>이 조언으로 이어지는 해석</span><Reason text={point.body} /></div><p className="reason-method">천간은 겉에 드러난 글자, 지지 본기는 아래 글자의 대표 성분이에요. 개수는 나를 기준으로 한 글자(일간)를 제외하고 셌어요. 개수만으로 강약이나 길흉을 확정하지 않아요.</p></div>;
 }
 
+function Takeaway({text}:{text:string}) {
+  const sentences=cleanDisplayText(text).match(/[^.!?。！？]+[.!?。！？]+|[^.!?。！？]+$/g)||[text];
+  return <p className="monthly-takeaway">{sentences.at(-1)?.trim().replace(/^(?:둘을 연결하면|둘을 함께 보면|이 둘을 연결하면|이를 연결하면)\s*/, '')}</p>;
+}
+function PointEvidence({chart,point}:{chart:SajuChart;point:{body:string;evidence:string[]}}) {
+  return <details className="spotlight-evidence"><summary>이렇게 풀이한 이유<ChevronDown size={18} aria-hidden="true" /></summary><CalculatedReason chart={chart} point={point} /></details>;
+}
 export function ReadingHero({chart,reading,nickname}:{chart:SajuChart;reading:Reading;nickname?:string}) {
   const month=chart.profile.currentMonth;
   const window=month?monthWindow(month):null;
-  const illustration=reading.monthly?selectOpportunityArt(reading.monthly.opportunity.title):null;
-  return <section className="fortune-hero" aria-labelledby="reading-headline">
-    <div className="fortune-heading"><div><p className="fortune-date">{month?`${month.year}년 ${month.month}월`:`${chart.profile.analysisYear}년`} 사주풀이</p><p className="fortune-greeting">{nickname?`${cleanDisplayText(nickname)}님을 위한`:'나를 위한'} {reading.monthly?'이번 달 한마디':'성격 풀이'}</p><h1 id="reading-headline" tabIndex={-1}>{reading.monthly?.headline||reading.headline}</h1></div><div className={`fortune-mascot element-${chart.dayElement}`}><Character element={chart.dayElement} decorative /></div></div>
-    {reading.monthly && window && <div className="reading-period"><CalendarDays size={22} aria-hidden="true" /><div><span>이번 달 풀이에서 살펴보는 범위</span><strong><time dateTime={window.start}>{window.start.replaceAll('-','.')}</time><span> ~ </span><time dateTime={window.end}>{window.end.replaceAll('-','.')}</time></strong><small>조언별 해당 기간은 각 카드에 따로 표시해요.</small></div></div>}
-    {reading.monthly?<div className="month-highlights" aria-label="이번 달 운세 핵심">
-      {(['opportunity','caution','action'] as const).map(key=>{const point=reading.monthly![key];const pointPeriod=selectedEvidence(chart.profile,point.evidence).find(f=>f.kind==='month')?.period;const Icon=key==='opportunity'?Sparkles:key==='caution'?CircleAlert:Check;return <article className={`month-point month-${key}`} key={key}><p className="month-label"><Icon size={19} aria-hidden="true" />{({opportunity:'이런 기회가 올 수 있어요',caution:'이것은 조심하세요',action:'이렇게 해보세요'})[key]}</p>
-      {key==='opportunity' && illustration && <figure className="opportunity-art">{/* Local pre-made artwork is also used verbatim in the saved card. */}{/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={illustration.src} alt={illustration.alt} width={1536} height={1024} /><figcaption>{illustration.label}</figcaption></figure>}
-      <div className="month-point-copy"><h2>{point.title}</h2>{window && <p className="point-period">{pointPeriod||window.label}{pointPeriod?' (한국 시간)':''}</p>}<CalculatedReason chart={chart} point={point} /></div></article>;})}
-    </div>:<p className="fortune-local-intro">{reading.intro}</p>}
-    <p className="fortune-context">이 기간의 사주를 해석한 조언이며, 특정 날짜에 사건이 생긴다는 뜻은 아니에요.{!chart.timeKnown?' 태어난 시간을 몰라 세부 시기 해석은 제한돼요.':chart.boundaryUncertain?' 시간 경계에서 달라질 수 있는 부분은 제외했어요.':''}</p>
+  const monthly=reading.monthly;
+  if(!monthly)return <section className="fortune-hero" aria-labelledby="reading-headline"><div className="fortune-heading"><div><p className="fortune-date">계산된 기본 풀이</p><p className="fortune-greeting">{nickname?`${cleanDisplayText(nickname)}님을 위한`:'나를 위한'} 성격 풀이</p><h1 id="reading-headline" tabIndex={-1}>{reading.headline}</h1></div><div className={`fortune-mascot element-${chart.dayElement}`}><Character element={chart.dayElement} decorative /></div></div><p className="fortune-local-intro">{reading.intro}</p></section>;
+  const cautionArt=selectFortuneArt(monthly.caution.title,'caution');
+  const periodFor=(point:typeof monthly.caution)=>selectedEvidence(chart.profile,point.evidence).find(f=>f.kind==='month')?.period;
+  const cautionPeriod=periodFor(monthly.caution);
+  return <section className="fortune-hero monthly-report" aria-labelledby="reading-headline">
+    <div className="monthly-report-caption"><p>{month?`${month.year}년 ${month.month}월`:`${chart.profile.analysisYear}년`} 나의 사주 핵심</p><span>{nickname?`${cleanDisplayText(nickname)}님`:'나'}에게 먼저 전할 이야기</span></div>
+    <article className="monthly-spotlight" aria-label="이번 달 가장 먼저 조심할 일">
+      <div className="spotlight-layout"><div className="spotlight-copy"><p className="spotlight-kicker"><CircleAlert size={17} aria-hidden="true" />이번 달, 이것부터 조심하세요</p><h1 id="reading-headline" tabIndex={-1}>{monthly.caution.title}</h1><Takeaway text={monthly.caution.body} /><p className="spotlight-period"><CalendarDays size={17} aria-hidden="true" /><span><strong>이 조언을 참고할 기간</strong>{cautionPeriod||window?.label}{cautionPeriod?' (한국 시간)':''}</span></p></div><figure className="spotlight-art">{/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={cautionArt.src} alt={cautionArt.alt} width={600} height={400} fetchPriority="high" /><figcaption>{cautionArt.label}</figcaption></figure></div>
+      <PointEvidence chart={chart} point={monthly.caution} />
+    </article>
+    <div className="monthly-next-heading"><p>조심할 일을 알았다면, 기회도 챙기세요.</p><span>내 사주에서 이어지는 다음 행동</span></div>
+    <div className="monthly-outlook">
+      {(['opportunity','action'] as const).map(key=>{const point=monthly[key];const art=selectFortuneArt(point.title,key);const period=periodFor(point);const Icon=key==='opportunity'?Sparkles:Check;return <article className={`outlook-card outlook-${key}`} id={`month-${key}`} key={key}><p className="outlook-label"><Icon size={18} aria-hidden="true" />{key==='opportunity'?'이런 기회가 올 수 있어요':'기회를 내 것으로 만드는 행동'}</p><figure className="outlook-art">{/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={art.src} alt={art.alt} width={600} height={400} loading="lazy" /><figcaption>{art.label}</figcaption></figure><div className="outlook-copy"><h2>{point.title}</h2><p className="outlook-period">{period||window?.label}{period?' (한국 시간)':''}</p><Takeaway text={point.body} /><PointEvidence chart={chart} point={point} /></div></article>;})}
+    </div>
+    <p className="fortune-context">표시한 기간의 사주를 바탕으로 한 전통적 해석이에요. 그림과 문구가 이별이나 금전 손실 등 실제 사건을 예고하는 것은 아니에요.{!chart.timeKnown?' 태어난 시간을 몰라 세부 시기 해석은 제한돼요.':chart.boundaryUncertain?' 시간 경계에서 달라질 수 있는 부분은 제외했어요.':''}</p>
     <a className="fortune-read-more" href="#my-reading">성격, 연애, 일, 돈도 자세히 보기<ArrowDown size={15} aria-hidden="true" /></a>
   </section>;
 }

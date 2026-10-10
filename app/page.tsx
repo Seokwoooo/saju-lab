@@ -19,6 +19,8 @@ type View = 'landing' | 'input' | 'analyzing' | 'result';
 interface PersonalResult { input: BirthInput; chart: SajuChart; local: Reading }
 
 export default function Home() {
+  const [ownerDevice,setOwnerDevice]=useState(false);
+  useEffect(()=>{const abort=new AbortController();void fetch('/api/owner/device',{cache:'no-store',signal:abort.signal}).then(r=>r.ok?r.json():null).then(data=>setOwnerDevice((data as {owner?:boolean}|null)?.owner===true)).catch(()=>{});return ()=>abort.abort();},[]);
   const [view, setView] = useState<View>('landing');
   const [personal, setPersonal] = useState<PersonalResult | null>(null);
   const [formError, setFormError] = useState('');
@@ -58,8 +60,9 @@ export default function Home() {
   }
   const reading = aiReading || personal?.local;
   const hasPersonalResult = Boolean(personal && (aiReading || aiError));
-  return <div className="saju-app"><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><div className="header-inner"><button className="brand" onClick={() => navigate('landing')} aria-label="사주랩 홈"><Brand /></button><nav aria-label="주요 메뉴"><a href="/faq">자주 묻는 질문</a><a className="header-open-source" href={GITHUB_URL} target="_blank" rel="noreferrer">오픈소스<ExternalLink size={13} aria-hidden="true" /></a></nav></div></header>
+  return <div className="saju-app"><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><div className="header-inner"><button className="brand" onClick={() => navigate('landing')} aria-label="사주랩 홈"><Brand /></button><nav aria-label="주요 메뉴"><a className="header-lucian-home" href="https://lucianlabs.dev"><ArrowLeft size={14} aria-hidden="true" />루샨 랩 - 홈으로</a><a href="/faq">자주 묻는 질문</a><a className="header-open-source" href={GITHUB_URL} target="_blank" rel="noreferrer">오픈소스<ExternalLink size={13} aria-hidden="true" /></a></nav></div></header>
   <main id="main-content">
+    {ownerDevice && <p className="owner-device-notice">운영자 브라우저 <strong>개인 횟수 제한 없음</strong><span>하루 $20 비용 상한과 동시 처리 제한은 적용돼요.</span></p>}
     {view === 'landing' && <SajuHome onStart={() => navigate('input')} />}
     {view === 'input' && <div className="input-page narrow-page"><button className="back-button" onClick={() => navigate(hasPersonalResult ? 'result' : 'landing')}><ArrowLeft size={17} />{hasPersonalResult ? '결과로 돌아가기' : '홈으로'}</button><div className="input-heading progressive-heading"><p className="eyebrow">나의 사주풀이 시작하기</p><h1 tabIndex={-1}>하나씩, 편하게 알려주세요.</h1><p>모르는 항목은 건너뛰어도 괜찮아요.</p></div><BirthForm key={personal ? 'edit' : 'new'} initial={personal?.input} onSubmit={calculate} error={formError} /></div>}
     {view === 'analyzing' && <AnalysisLoading stage={aiState==='idle'?'preparing':aiState} onCancel={()=>navigate('input')} />}

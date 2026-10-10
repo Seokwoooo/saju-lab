@@ -57,3 +57,22 @@ describe('real Miniflare D1 distributed limits', () => {
     expect((await db.prepare('SELECT COUNT(*) AS n FROM ai_reservations').first<{n:number}>())?.n).toBe(0);
   });
 });
+
+describe('owner count exception retains financial and safety boundaries',()=>{
+ it('admits owner requests after minute, daily IP and global count caps while denying a regular request',async()=>{
+  for(let i=0;i<10;i++){
+   const job={...input(`owner-${i}`,'owner',now),ownerCountBypass:true,dailyCalls:1};
+   expect(await reserveJob(db,job)).toEqual({ok:true});await releaseJob(db,job.requestId);
+  }
+  expect(await reserveJob(db,{...input('regular','owner'),dailyCalls:1})).toMatchObject({ok:false,code:'DAILY_CALL_LIMIT'});
+  expect((await db.prepare('SELECT SUM(reserved_microusd) AS n FROM ai_reservations').first<{n:number}>())?.n).toBe(400000);
+ });
+ it('cannot bypass the budget, replay or global concurrency even with owner authentication',async()=>{
+  const one={...input('owner-one','owner'),ownerCountBypass:true};
+  expect(await reserveJob(db,one)).toEqual({ok:true});
+  expect(await reserveJob(db,{...one,requestId:'replay'})).toMatchObject({ok:false,code:'CHALLENGE_REPLAY'});
+  expect(await reserveJob(db,{...input('budget','owner'),ownerCountBypass:true,dailyCalls:1,dailyBudgetMicros:40000})).toMatchObject({ok:false,code:'DAILY_BUDGET_LIMIT'});
+  expect(await reserveJob(db,{...input('owner-two','owner'),ownerCountBypass:true})).toEqual({ok:true});
+  expect(await reserveJob(db,{...input('owner-three','owner'),ownerCountBypass:true})).toMatchObject({ok:false,code:'CONCURRENCY_LIMIT'});
+ });
+});

@@ -1,3 +1,4 @@
+import { retryDelayMessage } from './retry-delay';
 import type { AIProfile, AIResponse, Reading } from './contracts';
 import type { AnalysisEvent, AnalysisStage } from './analysis-progress';
 
@@ -39,7 +40,7 @@ export async function requestReading(profile:AIProfile,{signal,onStatus,fetcher=
     const response=await fetcher('/api/challenge',{signal:controller.signal,cache:'no-store'});
     const body=await response.json() as {challenge?:{token?:unknown;difficulty?:unknown;expiresAt?:unknown};error?:string;retryAfter?:number};
     if(controller.signal.aborted) throw cancelled();
-    if(!response.ok||!body.challenge) throw new Error(`${body.error||'상세 풀이를 시작하지 못했어요.'}${body.retryAfter?` 약 ${body.retryAfter}초 후 다시 시도해 주세요.`:''}`);
+    if(!response.ok||!body.challenge) throw new Error(`${body.error||'상세 풀이를 시작하지 못했어요.'}${retryDelayMessage(body.retryAfter)}`);
     const {token,difficulty,expiresAt}=body.challenge;
     if(typeof token!=='string'||typeof difficulty!=='number'||typeof expiresAt!=='number') throw new Error('풀이 요청을 준비하지 못했어요. 다시 시도해 주세요.');
     const nonce=await solveChallenge(token,difficulty,expiresAt,controller.signal);
@@ -48,7 +49,7 @@ export async function requestReading(profile:AIProfile,{signal,onStatus,fetcher=
     const result=await fetcher('/api/analyze',{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/x-ndjson'},body:JSON.stringify({profile:publicProfile(profile),proof:{token,nonce}}),signal:controller.signal});
     const payload=result.ok && result.headers.get('content-type')?.includes('application/x-ndjson')?await readProgressStream(result,controller.signal,onStatus):await result.json() as AIResponse;
     if(controller.signal.aborted) throw cancelled();
-    if(!result.ok||!payload.reading||payload.reading.source!=='ai') throw new Error(`${payload.error||'상세 풀이를 완성하지 못했어요.'}${payload.retryAfter?` 약 ${payload.retryAfter}초 후 다시 시도해 주세요.`:''}`);
+    if(!result.ok||!payload.reading||payload.reading.source!=='ai') throw new Error(`${payload.error||'상세 풀이를 완성하지 못했어요.'}${retryDelayMessage(payload.retryAfter)}`);
     return payload.reading;
   };
   try{return await Promise.race([operation(),stopped]);}

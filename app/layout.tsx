@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@/components/saju/saju-home.css";
+import "@/components/saju/monthly-spotlight.css";
 import { SITE_URL } from "@/lib/site-config";
 
 export const metadata: Metadata = {
