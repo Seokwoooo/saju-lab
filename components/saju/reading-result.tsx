@@ -6,8 +6,9 @@ import { ELEMENTS, ELEMENT_LABELS, SECTION_KEYS } from '@/lib/contracts';
 import type { Reading, SajuChart, SectionKey } from '@/lib/contracts';
 import { ELEMENT_COLORS, getElementPercentages } from '@/lib/share-card';
 import { annualWindow, cleanDisplayText, monthWindow, selectOpportunityArt } from '@/lib/reading-presentation';
-import { ANALYSIS_LABELS, ANALYSIS_PROGRESS, type AnalysisStage } from '@/lib/analysis-progress';
+import { ANALYSIS_LABELS, estimatedProgress, type AnalysisStage } from '@/lib/analysis-progress';
 import { Character } from './character';
+import { selectedEvidence } from '@/lib/reading-evidence';
 
 const sectionLabels:Record<SectionKey,string>={personality:'나의 성격',strengths:'강점과 주의점',relationships:'인간관계',love:'연애 성향',career:'일하는 방식',money:'돈 쓰는 습관',year:'올해 운세',cycles:'나이별 운세',advice:'나에게 맞는 조언'};
 const sectionOrder:SectionKey[]=['personality','strengths','love','relationships','career','money','year','cycles','advice'];
@@ -18,18 +19,24 @@ function Reason({text}:{text:string}) {
   return <><p className="reason-lead"><strong>{sentences[0].trim()}</strong></p>{sentences.length>1 && <p>{sentences.slice(1).join(' ').trim()}</p>}</>;
 }
 
+function CalculatedReason({chart,point}:{chart:SajuChart;point:{body:string;evidence:string[]}}) {
+  const facts=selectedEvidence(chart.profile,point.evidence);
+  const basis=selectedEvidence(chart.profile,['day-element'])[0];
+  return <div className="month-reason calculated-reason"><h3>이렇게 풀이한 이유</h3><p className="reason-basis"><strong>{basis.fact}</strong> 기준으로 비교했어요.</p><ol className="reason-facts">{facts.map(fact=><li key={fact.id}><span className="reason-fact-label">{fact.kind==='month'?'해당 기간의 사주':'내 사주의 실제 구성'}</span>{fact.period&&<time className="reason-period">{fact.period} (한국 시간)</time>}<strong>{fact.fact}</strong><p>{fact.meaning}</p></li>)}</ol><div className="reason-conclusion"><span>이 조언으로 이어지는 해석</span><Reason text={point.body} /></div><p className="reason-method">천간은 겉에 드러난 글자, 지지 본기는 아래 글자의 대표 성분이에요. 개수는 나를 기준으로 한 글자(일간)를 제외하고 셌어요. 개수만으로 강약이나 길흉을 확정하지 않아요.</p></div>;
+}
+
 export function ReadingHero({chart,reading,nickname}:{chart:SajuChart;reading:Reading;nickname?:string}) {
   const month=chart.profile.currentMonth;
   const window=month?monthWindow(month):null;
   const illustration=reading.monthly?selectOpportunityArt(reading.monthly.opportunity.title):null;
   return <section className="fortune-hero" aria-labelledby="reading-headline">
     <div className="fortune-heading"><div><p className="fortune-date">{month?`${month.year}년 ${month.month}월`:`${chart.profile.analysisYear}년`} 사주풀이</p><p className="fortune-greeting">{nickname?`${cleanDisplayText(nickname)}님을 위한`:'나를 위한'} {reading.monthly?'이번 달 한마디':'성격 풀이'}</p><h1 id="reading-headline" tabIndex={-1}>{reading.monthly?.headline||reading.headline}</h1></div><div className={`fortune-mascot element-${chart.dayElement}`}><Character element={chart.dayElement} decorative /></div></div>
-    {reading.monthly && window && <div className="reading-period"><CalendarDays size={22} aria-hidden="true" /><div><span>아래 세 가지 조언이 적용되는 기간</span><strong><time dateTime={window.start}>{window.start.replaceAll('-','.')}</time><span> ~ </span><time dateTime={window.end}>{window.end.replaceAll('-','.')}</time></strong><small>한국 시간 기준, 시작일과 마지막 날을 모두 포함해요.</small></div></div>}
+    {reading.monthly && window && <div className="reading-period"><CalendarDays size={22} aria-hidden="true" /><div><span>이번 달 풀이에서 살펴보는 범위</span><strong><time dateTime={window.start}>{window.start.replaceAll('-','.')}</time><span> ~ </span><time dateTime={window.end}>{window.end.replaceAll('-','.')}</time></strong><small>조언별 해당 기간은 각 카드에 따로 표시해요.</small></div></div>}
     {reading.monthly?<div className="month-highlights" aria-label="이번 달 운세 핵심">
-      {(['opportunity','caution','action'] as const).map(key=>{const point=reading.monthly![key];const Icon=key==='opportunity'?Sparkles:key==='caution'?CircleAlert:Check;return <article className={`month-point month-${key}`} key={key}><p className="month-label"><Icon size={19} aria-hidden="true" />{({opportunity:'이런 기회가 올 수 있어요',caution:'이것은 조심하세요',action:'이렇게 해보세요'})[key]}</p>
+      {(['opportunity','caution','action'] as const).map(key=>{const point=reading.monthly![key];const pointPeriod=selectedEvidence(chart.profile,point.evidence).find(f=>f.kind==='month')?.period;const Icon=key==='opportunity'?Sparkles:key==='caution'?CircleAlert:Check;return <article className={`month-point month-${key}`} key={key}><p className="month-label"><Icon size={19} aria-hidden="true" />{({opportunity:'이런 기회가 올 수 있어요',caution:'이것은 조심하세요',action:'이렇게 해보세요'})[key]}</p>
       {key==='opportunity' && illustration && <figure className="opportunity-art">{/* Local pre-made artwork is also used verbatim in the saved card. */}{/* eslint-disable-next-line @next/next/no-img-element */}
       <img src={illustration.src} alt={illustration.alt} width={1536} height={1024} /><figcaption>{illustration.label}</figcaption></figure>}
-      <div className="month-point-copy"><h2>{point.title}</h2>{window && <p className="point-period">{window.label}</p>}<div className="month-reason"><span>이렇게 풀이한 이유</span><Reason text={point.body} /></div></div></article>;})}
+      <div className="month-point-copy"><h2>{point.title}</h2>{window && <p className="point-period">{pointPeriod||window.label}{pointPeriod?' (한국 시간)':''}</p>}<CalculatedReason chart={chart} point={point} /></div></article>;})}
     </div>:<p className="fortune-local-intro">{reading.intro}</p>}
     <p className="fortune-context">이 기간의 사주를 해석한 조언이며, 특정 날짜에 사건이 생긴다는 뜻은 아니에요.{!chart.timeKnown?' 태어난 시간을 몰라 세부 시기 해석은 제한돼요.':chart.boundaryUncertain?' 시간 경계에서 달라질 수 있는 부분은 제외했어요.':''}</p>
     <a className="fortune-read-more" href="#my-reading">성격, 연애, 일, 돈도 자세히 보기<ArrowDown size={15} aria-hidden="true" /></a>
@@ -51,11 +58,10 @@ export function ReadingSections({reading,chart}:{reading:Reading;chart:SajuChart
 }
 
 export function AnalysisLoading({stage,onCancel}:{stage:AnalysisStage;onCancel:()=>void}) {
-  const [elapsed,setElapsed]=useState(0);
-  useEffect(()=>{const start=Date.now();const timer=setInterval(()=>setElapsed(Math.floor((Date.now()-start)/1000)),1000);return ()=>clearInterval(timer);},[]);
-  const percent=ANALYSIS_PROGRESS[stage];
-  const steps=['사주 계산','요청 접수','풀이와 근거 확인','결과 받기'];
-  return <div className="analysis-page narrow-page"><div className="analysis-art" aria-hidden="true"><Character element="wood" decorative /><span className="analysis-spark">✦</span><Character element="fire" decorative /></div><p className="fortune-date">나만의 사주풀이</p><h1 tabIndex={-1}>기회도, 조심할 일도.<br />그 이유까지 풀고 있어요.</h1><p className="analysis-status" role="status">{ANALYSIS_LABELS[stage]}</p><div className="analysis-progress"><div className="progress-heading"><span>처리 단계 진행률</span><strong>{percent}<small>%</small></strong></div><div className="progress-track" role="progressbar" aria-label="완료한 처리 단계" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent} aria-valuetext={`${steps.length}단계 중 ${percent/25}단계 완료`}><div style={{width:`${percent}%`}} /></div><ol className="analysis-checkpoints">{steps.map((step,index)=><li className={index<percent/25?'done':''} key={step}><span>{index<percent/25?<Check size={13} aria-hidden="true" />:index+1}</span>{step}</li>)}</ol><div className="analysis-timing"><strong>{elapsed<60 && stage!=='retrying'?'예상 소요 시간 30~60초':'평소보다 시간이 더 걸리고 있어요'}</strong><span>{elapsed}초 경과</span></div><p className="progress-explanation">완료된 단계에 따라 숫자가 올라가요. 풀이 중에는 잠시 멈춰 있을 수 있어요.{elapsed>=60 || stage==='retrying'?' 최대 약 100초 안에 결과나 재시도 안내를 보여드려요.':' 예상 시간은 최근 확인한 처리 시간 기준으로, 연결 상태에 따라 달라져요.'}</p></div><button className="button text-button" onClick={onCancel}>취소하고 입력 수정하기</button></div>;
+  const [elapsedMs,setElapsedMs]=useState(0);
+  useEffect(()=>{const start=performance.now();const timer=setInterval(()=>setElapsedMs(performance.now()-start),100);return ()=>clearInterval(timer);},[]);
+  const percent=estimatedProgress(elapsedMs,stage);const elapsed=Math.floor(elapsedMs/1000);
+  return <div className="analysis-page narrow-page"><div className="analysis-art" aria-hidden="true"><Character element="wood" decorative /><span className="analysis-spark">✦</span><Character element="fire" decorative /></div><p className="fortune-date">나만의 사주풀이</p><h1 tabIndex={-1}>기회도, 조심할 일도.<br />그 이유까지 풀고 있어요.</h1><p className="analysis-status" role="status">{ANALYSIS_LABELS[stage]}</p><div className="analysis-progress"><div className="progress-heading"><span>예상 진행률</span><strong>{Math.floor(percent)}<small>%</small></strong></div><div className="progress-track animated-progress" role="progressbar" aria-label="대기 시간에 따른 예상 진행률" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(percent)} aria-valuetext={`예상 ${Math.floor(percent)}퍼센트. ${ANALYSIS_LABELS[stage]}`}><div style={{width:`${percent}%`}} /></div><div className="analysis-timing"><strong>{elapsed<60 && stage!=='retrying'?'예상 소요 시간 30~60초':'평소보다 시간이 더 걸리고 있어요'}</strong><span>{elapsed}초 경과</span></div><p className="progress-explanation">진행률은 대기 시간을 바탕으로 한 예상치예요. 실제 처리 상태는 위 문구로 알려드려요.{elapsed>=60 || stage==='retrying'?' 최대 약 100초 안에 결과나 재시도 안내를 보여드려요.':' 결과와 근거 확인을 마쳐야 100%가 돼요.'}</p></div><button className="button text-button" onClick={onCancel}>취소하고 입력 수정하기</button></div>;
 }
 
 export function TechnicalDetails({ chart, reading }: { chart: SajuChart; reading: Reading }) {

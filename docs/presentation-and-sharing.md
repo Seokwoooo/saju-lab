@@ -4,7 +4,7 @@ The public interface does not advertise its language-model implementation. The p
 
 ## Dates and progress
 
-The monthly opportunity, caution and action all interpret the **whole Korean civil month**, including both displayed dates. `monthWindow` computes the final date, including leap years. The three cards repeat the actual date range. These dates are interpretation scope, never promised event dates. Annual interpretation uses the engine's exact spring-term instants from the named year to the next spring term, with an exclusive end. Personality, love, work and money habits are explicitly marked as general tendencies. Age-cycle ranges remain the calculated age ranges; calendar dates are not invented.
+The report starts with the **whole Korean civil month** as its overview. `monthWindow` computes the final date, including leap years. Each opportunity, caution and action then selects exactly one computed solar-term interval and displays that exact interval, with an exclusive end. The monthly PNG carries the same interval as the opportunity it exports. These dates are interpretation scope, never promised event dates. Annual interpretation uses the engine's exact spring-term instants from the named year to the next spring term, with an exclusive end. Personality, love, work and money habits are explicitly marked as general tendencies. Age-cycle ranges remain the calculated age ranges; calendar dates are not invented.
 
 `POST /api/analyze` negotiates `application/x-ndjson`. Legacy JSON clients remain supported. The response streams only:
 
@@ -15,7 +15,15 @@ The monthly opportunity, caution and action all interpret the **whole Korean civ
 
 No partial model prose or reasoning is streamed. The stream owns the D1 lease until cleanup. The client consumes the stream through its natural end after the final event, allowing the server to finish lease cleanup before showing completion. Client disconnect cancels the provider, retains the reserved budget and releases the concurrency lease.
 
-The displayed percentage is **completed-stage progress**, not elapsed-time animation or estimated generated-token percentage: browser calculation 25%, admitted request 50%, validated reading 75%, result received 100%. The screen says this directly. The 30–60 second estimate is based on observed recent roughly 36-second successful runs; it is not a guarantee. Elapsed time is real. Slow/retry status explains the roughly 100-second client deadline. No artificial delay is added after completion.
+The progress bar starts at 0 and updates every 100 ms with CSS interpolation. It is explicitly labelled **예상 진행률**: a monotone elapsed-time estimate using a 24-second exponential time constant, capped below 95% while waiting. Preparation is capped at 12%, validation may show 98%, and only a fully received, validated response can show 100%. Actual server status is displayed separately. Retry never resets the estimate. Reduced-motion disables decorative animation. No fake work stages or artificial completion delay are added.
+
+## Concrete reasons and direct headlines
+
+Every monthly point references a positive natal ten-god count and a specific solar-term interval. `reading-evidence.ts` supplies deterministic counts, exact interval timestamps and conventional definitions. The UI prints these facts, the day-master basis and the model's explanatory connection separately. The server supplies the same catalogue to the model, then checks that the named natal relation and monthly relation each belong to the facts cited in that point. Generic reasons and clearly invented relations are rejected. The catalogue's counts exclude the day master and use branch main stems; they are not seasonal strength weights or proof of future events.
+
+The headline identifies one concrete behavior, such as paying other people's share before agreeing a split. Direct prohibitions are allowed; fabricated disasters, medical outcomes and fear-based claims are not. Keyword checks do not prove the meaning of every sentence, so bounded live content review remains necessary.
+
+Compatibility entry points, the result flow and compatibility card selection were removed. Six personal card types remain. Legacy library helpers remain in source for existing downstream callers; they are not exposed in the app.
 
 ## Pre-made illustrations
 
@@ -38,7 +46,7 @@ The existing OG image was edited with the built-in tool only to remove its two m
 
 ## Saved images and Photos
 
-A new monthly layout joins the original six card layouts. The prominent result bar provides **사진 저장**, **공유하기**, and card customization. PNG sizes remain 1080×1350 and 1080×1920. Previews and downloads reuse the same Blob. The monthly export includes the actual period, opportunity, matching illustration, reason and action.
+Six personal card layouts include the monthly result. The prominent result bar provides **사진 저장**, **공유하기**, and card customization. PNG sizes remain 1080×1350 and 1080×1920. Previews and downloads reuse the same Blob. The monthly export includes the actual period, opportunity, matching illustration, reason and action.
 
 Native sharing passes a PNG File with only a generic title. Cancellation is not reported as a saved photo. Web browsers cannot silently insert images into the Photos library. The save dialog therefore gives a native share button, long-press guidance and an explicit PNG download alternative. The OS decides available save destinations. Default exports omit names, birth dates, birth times, gender and evidence IDs.
 

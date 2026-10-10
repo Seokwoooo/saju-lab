@@ -3,6 +3,7 @@ import type { Compatibility, Element, Reading, SajuChart } from './contracts';
 import { SHARE_HOST } from './site-config';
 import { cleanDisplayText } from './display-text';
 import { monthWindow, selectOpportunityArt } from './reading-presentation';
+import { selectedEvidence } from './reading-evidence';
 
 export const CARD_TYPES = [
   { id: 'monthly', label: '이번 달의 기회', short: '이번 달', note: '기회와 이유, 할 일까지' },
@@ -11,9 +12,8 @@ export const CARD_TYPES = [
   { id: 'love', label: '연애 스타일', short: '연애', note: '마음을 나누는 방식' },
   { id: 'year', label: '올해의 흐름', short: '올해', note: '이번 계절의 힌트' },
   { id: 'career', label: '일과 재능', short: '일, 재능', note: '내가 빛나는 자리' },
-  { id: 'compatibility', label: '우리의 궁합', short: '궁합', note: '함께 자라는 두 사람' },
 ] as const;
-export type CardType = (typeof CARD_TYPES)[number]['id'];
+export type CardType = (typeof CARD_TYPES)[number]['id'] | 'compatibility';
 export type CardFormat = 'portrait' | 'story';
 export type CardTheme = 'cream' | 'lavender' | 'peach';
 export interface CardContent {
@@ -46,7 +46,7 @@ export function createCardContent(options: {
     headline: cleanText(type==='monthly'?reading.monthly!.opportunity.title:type === 'compatibility' ? compatibility!.title : type === 'headline' ? reading.headline : type === 'balance' ? '다섯 빛깔로 이루어진 나' : section.title, 160),
     body: selectCardExcerpt(type==='monthly'?reading.monthly!.opportunity.body:type === 'compatibility' ? compatibility!.summary : type === 'headline' ? reading.intro : type === 'balance' ? '사주 글자를 다섯 종류로 나누어 센 비율이에요. 성격이나 능력의 점수는 아니에요.' : section.body, type==='monthly'?170:type === 'headline' ? 72 : type === 'compatibility' ? 65 : type === 'year' ? 110 : 90),
     tip: selectCardExcerpt(type==='monthly'?reading.monthly!.action.title:type === 'compatibility' ? compatibility!.advice : section.tip, 70),
-    ...(type==='monthly'?{period:monthWindow(chart.profile.currentMonth!).label,illustration:selectOpportunityArt(reading.monthly!.opportunity.title).src}:{}),
+    ...(type==='monthly'?{period:selectedEvidence(chart.profile,reading.monthly!.opportunity.evidence).find(f=>f.kind==='month')?.period??monthWindow(chart.profile.currentMonth!).label,illustration:selectOpportunityArt(reading.monthly!.opportunity.title).src}:{}),
     ...(options.showNickname && options.nickname?.trim() ? { nickname: cleanText(options.nickname, 20) } : {}),
     elements: type === 'compatibility' ? [...compatibility!.elements] : [chart.dayElement],
     percentages: getElementPercentages(chart.elementCounts),

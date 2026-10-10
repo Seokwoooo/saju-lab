@@ -15,12 +15,17 @@ const reading:Reading = { headline: '천천히, 단단하게 자라는 사람', 
 const compatibility: Compatibility = { title: '서로의 계절이 되어주는 사이', summary: '나누면 더 풍성해지는 관계.', harmony: '함께 자라요.', difference: '속도가 달라요.', advice: '서로의 속도를 존중해요.', elements: ['wood', 'water'], source: 'local' };
 
 describe('sharing privacy and export contract', () => {
+  it('offers only the six personal cards after compatibility removal',()=>{expect(CARD_TYPES).toHaveLength(6);expect(CARD_TYPES.map(card=>card.id)).not.toContain('compatibility');});
   it('shares the real monthly opportunity with its exact public forecast period and matching artwork',()=>{
     const card=createCardContent({type:'monthly',chart,reading:{...reading,monthly:{...reading.monthly!,opportunity:{...section,title:'친구와 함께 모임을 준비해 보세요'}}}});
     expect(card.headline).toBe('친구와 함께 모임을 준비해 보세요');
     expect(card.period).toBe('2026.10.01 ~ 2026.10.31');
     expect(card.illustration).toBe('/illustrations/connection.webp');
     expect(()=>createCardContent({type:'monthly',chart,reading:{...reading,monthly:undefined}})).toThrow('완료');
+  });
+  it('exports the exact cited solar-term interval instead of widening it to the whole month',()=>{
+    const card=createCardContent({type:'monthly',chart,reading:{...reading,monthly:{...reading.monthly!,opportunity:{...section,evidence:['day-element','month:2026-10:1']}}}});
+    expect(card.period).toBe('2026.10.08 15:29 ~ 2026.11.01 00:00 직전');
   });
   it('omits name by default and never includes raw birth dates, pillars, or evidence', () => {
     for (const type of CARD_TYPES) {
@@ -38,7 +43,7 @@ describe('sharing privacy and export contract', () => {
   });
   it('uses the actual reading and carries uncertainty onto every personal card', () => {
     expect(createCardContent({ type: 'headline', chart, reading }).headline).toBe(reading.headline);
-    for (const type of CARD_TYPES.filter(t => t.id !== 'compatibility')) {
+    for (const type of CARD_TYPES) {
       expect(createCardContent({ type: type.id, chart, reading }).footnote).toContain('시간 미상');
       expect(createCardContent({ type: type.id, chart, reading }).footnote).toContain('절기, 시각 경계');
       const historicalBoundary = createCardContent({ type: type.id, chart: { ...chart, timeKnown: true }, reading }).footnote;

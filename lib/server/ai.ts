@@ -4,6 +4,7 @@ import { type AIConfig, unavailable } from './config';
 import { evidenceIds, readBoundedJson, validateReading, OUTPUT_TEXT_LIMITS, KOREAN_OUTPUT_PATTERN, InvalidAIOutputError, UnsupportedAIClaimError, safeValidationIssues, type SafeValidationIssue } from './validation';
 import { z } from 'zod';
 import { READING_PROMPT } from './reading-prompt';
+import { monthlyEvidence } from '../reading-evidence';
 
 const API='https://openrouter.ai/api/v1';
 const FALLBACK_MODEL='openai/gpt-6-luna';
@@ -18,7 +19,7 @@ function responseFormat(profile:AIProfile) {
     const allowed=key==='year'?ids.filter(id=>id.startsWith('annual:')):key==='cycles' && profile.cycles.length?ids.filter(id=>id.startsWith('cycle:')):ids;
     return [key,{type:'object',additionalProperties:false,properties:{title:textSchema(OUTPUT_TEXT_LIMITS.title),body:textSchema(OUTPUT_TEXT_LIMITS.body),tip:textSchema(OUTPUT_TEXT_LIMITS.tip),evidence:{type:'array',minItems:1,maxItems:5,items:{type:'string',enum:allowed}}},required:['title','body','tip','evidence']}];
   }));
-  const monthlyPoint={type:'object',additionalProperties:false,properties:{title:textSchema(60),body:textSchema(250),evidence:{type:'array',minItems:2,maxItems:5,items:{type:'string',enum:ids}}},required:['title','body','evidence']};
+  const monthlyPoint={type:'object',additionalProperties:false,properties:{title:textSchema(60),body:{...textSchema(250),description:'선택한 계산 근거의 십성 이름을 직접 인용하고, 그 전통적 의미를 제목의 행동과 연결한 한국어 설명. 새 계산이나 길흉 단정 금지.'},evidence:{type:'array',minItems:2,maxItems:3,items:{type:'string',enum:monthlyEvidence(profile).map(f=>f.id)}}},required:['title','body','evidence']};
   const monthly=profile.currentMonth?{monthly:{type:'object',additionalProperties:false,properties:{headline:textSchema(60),opportunity:monthlyPoint,caution:monthlyPoint,action:monthlyPoint},required:['headline','opportunity','caution','action']}}:{};
   return {type:'json_schema',json_schema:{name:'saju_reading',strict:true,schema:{type:'object',additionalProperties:false,properties:{headline:textSchema(OUTPUT_TEXT_LIMITS.headline),intro:textSchema(OUTPUT_TEXT_LIMITS.intro),sections:{type:'object',additionalProperties:false,properties:sections,required:[...SECTION_KEYS]},...monthly},required:['headline','intro','sections',...(profile.currentMonth?['monthly']:[])]}}};
 }
@@ -26,7 +27,7 @@ function providerRequestBody(profile:AIProfile,config:AIConfig,fallback:boolean)
   const structured=responseFormat(profile);
   const objectMode=!fallback && config.primaryResponseMode==='json_object';
   const reasoning=!fallback && config.primaryReasoningEffort!=='none'?{effort:config.primaryReasoningEffort,exclude:true}:{enabled:false};
-  const body={model:fallback?FALLBACK_MODEL:config.primaryModel,messages:[{role:'system',content:systemPrompt},{role:'user',content:JSON.stringify({profile,evidenceIds:evidenceIds(profile),...(objectMode?{outputSchema:structured.json_schema.schema}:{})})}],max_tokens:config.maxTokens,reasoning,stream:false,response_format:objectMode?{type:'json_object'}:structured,provider:{only:[fallback?'openai':'azure'],...(fallback?{ignore:['azure']}:{}),allow_fallbacks:false,require_parameters:true,data_collection:'deny',max_price:{prompt:fallback?FALLBACK_PROMPT_PRICE:config.promptPrice,completion:fallback?FALLBACK_COMPLETION_PRICE:config.completionPrice,request:0}}};
+  const body={model:fallback?FALLBACK_MODEL:config.primaryModel,messages:[{role:'system',content:systemPrompt},{role:'user',content:JSON.stringify({profile,evidenceIds:evidenceIds(profile),monthlyFacts:monthlyEvidence(profile),...(objectMode?{outputSchema:structured.json_schema.schema}:{})})}],max_tokens:config.maxTokens,reasoning,stream:false,response_format:objectMode?{type:'json_object'}:structured,provider:{only:[fallback?'openai':'azure'],...(fallback?{ignore:['azure']}:{}),allow_fallbacks:false,require_parameters:true,data_collection:'deny',max_price:{prompt:fallback?FALLBACK_PROMPT_PRICE:config.promptPrice,completion:fallback?FALLBACK_COMPLETION_PRICE:config.completionPrice,request:0}}};
   return body;
 }
 export function makeProviderRequest(profile:AIProfile,config:AIConfig,fallback=false) {

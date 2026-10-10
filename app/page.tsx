@@ -1,30 +1,27 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ExternalLink, Heart, Leaf, LockKeyhole, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
-import type { BirthInput, Compatibility, Reading, SajuChart } from '@/lib/contracts';
+import { ArrowLeft, ArrowRight, ExternalLink, Leaf, LockKeyhole, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
+import type { BirthInput, Reading, SajuChart } from '@/lib/contracts';
 import { calculateSaju } from '@/lib/saju';
 import { requestReading } from '@/lib/client-analysis';
-import { calculateCompatibility, createLocalReading } from '@/lib/local-reading';
+import { createLocalReading } from '@/lib/local-reading';
 import { GITHUB_URL, X_URL } from '@/lib/site-config';
 import { Brand } from '@/components/saju/brand';
 import { BirthForm } from '@/components/saju/birth-form';
 import { Character, Flower } from '@/components/saju/character';
-import { CompatibilityForm, CompatibilityResult } from '@/components/saju/compatibility';
-import { AnalysisLoading, ReadingHero, ReadingSections, TechnicalDetails } from '@/components/saju/reading-result';
+import { AnalysisLoading, ReadingHero, ReadingSections } from '@/components/saju/reading-result';
 import { ShareStudio } from '@/components/saju/share-studio';
 import { QuickShareActions } from '@/components/saju/quick-share-actions';
 import { LandingPreview } from '@/components/saju/landing-preview';
 import type { AnalysisStage } from '@/lib/analysis-progress';
 
-type View = 'landing' | 'input' | 'analyzing' | 'result' | 'compatibility-input' | 'compatibility-result';
+type View = 'landing' | 'input' | 'analyzing' | 'result';
 interface PersonalResult { input: BirthInput; chart: SajuChart; local: Reading }
-interface CoupleResult { inputs: [BirthInput, BirthInput]; charts: [SajuChart, SajuChart]; reading: Reading; result: Compatibility }
 
 export default function Home() {
   const [view, setView] = useState<View>('landing');
   const [personal, setPersonal] = useState<PersonalResult | null>(null);
-  const [couple, setCouple] = useState<CoupleResult | null>(null);
   const [formError, setFormError] = useState('');
   const [aiReading, setAiReading] = useState<Reading | null>(null);
   const [aiState, setAiState] = useState<AnalysisStage | 'idle'>('idle');
@@ -39,15 +36,11 @@ export default function Home() {
     if (aiController.current) return;
     try {
       const chart=calculateSaju(input); const local=createLocalReading(chart);
-      setPersonal({input,chart,local}); setCouple(null); setAiReading(null); setAiError(''); setFormError('');
+      setPersonal({input,chart,local}); setAiReading(null); setAiError(''); setFormError('');
       void requestAI(chart);
     } catch(error) { setFormError(error instanceof Error?error.message:'입력한 정보를 확인해 주세요.'); }
   }
-  function calculateCouple(a: BirthInput, b: BirthInput) {
-    try { const first = calculateSaju(a); const second = calculateSaju(b); setCouple({ inputs: [a, b], charts: [first, second], reading: createLocalReading(first), result: calculateCompatibility(first, second) }); setView('compatibility-result'); setFormError(''); }
-    catch (error) { setFormError(error instanceof Error ? error.message : '두 사람의 입력 정보를 확인해 주세요.'); }
-  }
-  function reset() { stopAI(); setPersonal(null); setCouple(null); setAiReading(null); setAiError(''); setFormError(''); setView('landing'); }
+  function reset() { stopAI(); setPersonal(null); setAiReading(null); setAiError(''); setFormError(''); setView('landing'); }
   async function requestAI(chart:SajuChart) {
     if(aiController.current) return;
     const controller=new AbortController(); aiController.current=controller;
@@ -66,7 +59,7 @@ export default function Home() {
   }
   const reading = aiReading || personal?.local;
   const hasPersonalResult = Boolean(personal && (aiReading || aiError));
-  return <div className="saju-app"><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><div className="header-inner"><button className="brand" onClick={() => navigate('landing')} aria-label="사주랩 홈"><Brand /></button><nav aria-label="주요 메뉴"><button className={view.includes('compatibility') ? 'nav-active' : ''} onClick={() => navigate('compatibility-input')}>우리 궁합 <Heart size={14} aria-hidden="true" /></button><a href="/faq">자주 묻는 질문</a><a className="header-open-source" href={GITHUB_URL} target="_blank" rel="noreferrer">오픈소스<ExternalLink size={13} aria-hidden="true" /></a></nav></div></header>
+  return <div className="saju-app"><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><div className="header-inner"><button className="brand" onClick={() => navigate('landing')} aria-label="사주랩 홈"><Brand /></button><nav aria-label="주요 메뉴"><a href="/faq">자주 묻는 질문</a><a className="header-open-source" href={GITHUB_URL} target="_blank" rel="noreferrer">오픈소스<ExternalLink size={13} aria-hidden="true" /></a></nav></div></header>
   <main id="main-content">
     {view === 'landing' && <>
       <section className="hero">
@@ -76,7 +69,7 @@ export default function Home() {
           <h1 tabIndex={-1}>이번 달,<br /><span className="hero-word">내게 올 기회는?<Flower /></span></h1>
           <p className="hero-description"><strong>무엇을 조심하고, 어떤 기회를 잡으면 좋을지.</strong><br />언제부터 언제까지인지, 그 이유까지 알려드려요.</p>
           <ul className="hero-topics" aria-label="사주에서 살펴볼 이야기"><li>이번 달 핵심</li><li>연애와 관계</li><li>일과 돈</li><li>타고난 성격</li></ul>
-          <div className="hero-buttons"><button className="button primary" onClick={() => navigate('input')}>내 사주 무료로 보기<ArrowRight size={19} aria-hidden="true" /></button><button className="button text-button" onClick={() => navigate('compatibility-input')}><Heart size={17} aria-hidden="true" />두 사람의 궁합 보기</button></div>
+          <div className="hero-buttons"><button className="button primary" onClick={() => navigate('input')}>내 사주 무료로 보기<ArrowRight size={19} aria-hidden="true" /></button></div>
           <p className="hero-small"><LockKeyhole size={13} aria-hidden="true" /> 생년월일 저장 없이, 태어난 시간은 선택</p>
         </div>
         <LandingPreview />
@@ -90,7 +83,7 @@ export default function Home() {
     {view === 'input' && <div className="input-page narrow-page"><button className="back-button" onClick={() => navigate(hasPersonalResult ? 'result' : 'landing')}><ArrowLeft size={17} />{hasPersonalResult ? '결과로 돌아가기' : '홈으로'}</button><div className="input-heading progressive-heading"><p className="eyebrow">나의 사주풀이 시작하기</p><h1 tabIndex={-1}>하나씩, 편하게 알려주세요.</h1><p>모르는 항목은 건너뛰어도 괜찮아요.</p></div><BirthForm key={personal ? 'edit' : 'new'} initial={personal?.input} onSubmit={calculate} error={formError} /></div>}
     {view === 'analyzing' && <AnalysisLoading stage={aiState==='idle'?'preparing':aiState} onCancel={()=>navigate('input')} />}
     {view === 'result' && personal && reading && <div className="result-page wide-page reading-report">
-      <div className="result-toolbar"><button className="back-button" onClick={()=>navigate('input')}><ArrowLeft size={17} />정보 수정</button><div><button className="back-button" onClick={()=>navigate('compatibility-input')}><Heart size={16} />궁합 보기</button><button className="back-button" onClick={reset}><RotateCcw size={16} />처음부터</button></div></div>
+      <div className="result-toolbar"><button className="back-button" onClick={()=>navigate('input')}><ArrowLeft size={17} />정보 수정</button><div><button className="back-button" onClick={reset}><RotateCcw size={16} />처음부터</button></div></div>
       {aiError && <section className="analysis-failure" aria-label="사주풀이 상태"><div role="alert"><strong>상세 풀이를 받지 못했어요.</strong><p>{aiError}</p><p>아래는 계산값에 따른 기본 해석이에요. 이번 달의 개인별 상세 운세는 풀이가 완료되면 보여드려요.</p></div><button className="button secondary" onClick={()=>void requestAI(personal.chart)}><RotateCcw size={16} />상세 풀이 다시 시도</button></section>}
       <ReadingHero chart={personal.chart} reading={reading} nickname={personal.input.name} />
       <QuickShareActions chart={personal.chart} reading={reading} />
@@ -98,7 +91,5 @@ export default function Home() {
       <details className="share-drawer" id="share-options"><summary><span><Sparkles size={19} aria-hidden="true" />내 사주 카드 저장하기</span><ChevronDown size={20} aria-hidden="true" /></summary><ShareStudio key="personal" chart={personal.chart} reading={reading} nickname={personal.input.name} /></details>
       <div className="result-end"><Leaf size={22} strokeWidth={1.4} /><p>내 경험과 맞는 조언부터 하나씩 해보세요.</p><button className="button text-button" onClick={reset}>처음부터 다시 보기<ArrowRight size={17} /></button></div>
     </div>}
-    {view === 'compatibility-input' && <div className="compatibility-page wide-page"><button className="back-button" onClick={() => navigate(hasPersonalResult ? 'result' : 'landing')}><ArrowLeft size={17} />{hasPersonalResult ? '나의 결과로' : '홈으로'}</button><div className="compatibility-heading"><p className="eyebrow">TWO SEASONS, ONE LITTLE GARDEN</p><h1 tabIndex={-1}>우리, 어떤 사이일까요?</h1><p>잘 맞는 점과 서로 다른 점.<br />두 사람의 사주로 관계를 더 쉽게 이해해 보세요.</p><div className="mini-couple"><Character element="fire" decorative /><Flower /><Character element="water" decorative /></div><span className="soft-label">연인, 친구, 가족, 함께 일하는 사이</span></div><CompatibilityForm key={couple ? 'edit-couple' : personal ? 'with-personal' : 'blank'} initial={couple?.inputs[0] || personal?.input} initialSecond={couple?.inputs[1]} onSubmit={calculateCouple} error={formError} /></div>}
-    {view === 'compatibility-result' && couple && <div className="result-page wide-page"><div className="result-toolbar"><button className="back-button" onClick={() => navigate('compatibility-input')}><ArrowLeft size={17} />두 사람 정보 수정</button><button className="back-button" onClick={reset}><RotateCcw size={16} />처음부터</button></div><h1 className="visually-hidden" tabIndex={-1}>두 사람의 궁합 결과</h1><CompatibilityResult result={couple.result} charts={couple.charts} names={[couple.inputs[0].name, couple.inputs[1].name]} /><ShareStudio key="couple" chart={couple.charts[0]} reading={couple.reading} compatibility={couple.result} compatibilityUncertain={couple.charts.some(chart => !chart.timeKnown || chart.boundaryUncertain)} /><div className="couple-technical"><p>궁합은 두 사람의 계산값을 바탕으로 한 기본 해석입니다.</p><TechnicalDetails chart={couple.charts[0]} reading={couple.reading} /><TechnicalDetails chart={couple.charts[1]} reading={createLocalReading(couple.charts[1])} /></div></div>}
   </main><footer className="site-footer"><div className="footer-top"><button className="brand" onClick={() => navigate('landing')}><Brand /></button><p>누구나 쉽게, 무료 사주풀이.<br /><a href="https://lucianlabs.dev" target="_blank" rel="noreferrer">Lucian Labs ↗</a><br /><span>Made with ♡ by Lucian</span></p><nav aria-label="사이트 안내"><a href="/about">사주랩 소개</a><a href="/faq">자주 묻는 질문</a><a href="/privacy">개인정보 안내</a><a href="/terms">이용 안내</a><a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub ↗</a>{X_URL && <a href={X_URL} target="_blank" rel="noreferrer">루샨lucian on X ↗</a>}</nav></div><div className="footer-bottom"><span>© {new Date().getFullYear()} SAJU LAB, FREE & OPEN SOURCE</span><span>재미와 자기성찰을 위한 전통 해석</span></div></footer></div>;
 }

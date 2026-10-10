@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ELEMENTS, SECTION_KEYS, type AIProfile, type Reading } from '../contracts';
 import { ApiError } from './errors';
+import { monthlyEvidence, selectedEvidence } from '../reading-evidence';
 
 export const TEN_GODS = ['비견','겁재','식신','상관','편재','정재','편관','정관','편인','정인'] as const;
 const element = z.enum(ELEMENTS);
@@ -56,7 +57,7 @@ export async function readBoundedJson(request:Request|Response,maxBytes=12_288):
   catch{throw new ApiError(400,'INVALID_JSON','요청 정보가 올바르지 않아요.');}
 }
 export function evidenceIds(profile:AIProfile):string[] {
-  return ['day-element','polarity','season','time-known','boundary-uncertain',...ELEMENTS.map(e=>`element:${e}`),...Object.keys(profile.tenGodCounts).map(g=>`ten-god:${g}`),...profile.annual.map(a=>`annual:${a.year}`),...profile.cycles.map((_,i)=>`cycle:${i}`),...(profile.currentMonth?[`month:${profile.currentMonth.year}-${String(profile.currentMonth.month).padStart(2,'0')}`]:[])];
+  return ['day-element','polarity','season','time-known','boundary-uncertain',...ELEMENTS.map(e=>`element:${e}`),...Object.keys(profile.tenGodCounts).map(g=>`ten-god:${g}`),...profile.annual.map(a=>`annual:${a.year}`),...profile.cycles.map((_,i)=>`cycle:${i}`),...monthlyEvidence(profile).filter(f=>f.kind==='month').map(f=>f.id)];
 }
 export const OUTPUT_TEXT_LIMITS={headline:70,intro:300,title:40,body:450,tip:120} as const;
 export const KOREAN_OUTPUT_PATTERN='^[^<>\\u3400-\\u9fff]*[가-힣][^<>\\u3400-\\u9fff]*$';
@@ -77,7 +78,7 @@ export class InvalidAIOutputError extends ApiError {
     this.validationIssues=safeValidationIssues(issues);
   }
 }
-type ClaimRule='PILLAR_OR_BIRTH_INFORMATION'|'EXACT_DATE_OR_TIME'|'GUARANTEED_FINANCIAL_OUTCOME'|'MEDICAL_CLAIM'|'FATALISTIC_CLAIM'|'PROHIBITED_TERMINOLOGY'|'UNSUPPORTED_YEAR'|'ELEMENT_COUNT_MISMATCH'|'DAY_ELEMENT_MISMATCH'|'ANNUAL_ELEMENT_MISMATCH'|'TEN_GOD_COUNT_MISMATCH'|'OPAQUE_LANGUAGE'|'UNSUPPORTED_AGE_PERIOD';
+type ClaimRule='PILLAR_OR_BIRTH_INFORMATION'|'EXACT_DATE_OR_TIME'|'GUARANTEED_FINANCIAL_OUTCOME'|'MEDICAL_CLAIM'|'FATALISTIC_CLAIM'|'PROHIBITED_TERMINOLOGY'|'UNSUPPORTED_YEAR'|'ELEMENT_COUNT_MISMATCH'|'DAY_ELEMENT_MISMATCH'|'ANNUAL_ELEMENT_MISMATCH'|'TEN_GOD_COUNT_MISMATCH'|'OPAQUE_LANGUAGE'|'UNSUPPORTED_AGE_PERIOD'|'UNSUPPORTED_MONTHLY_REASON'|'VAGUE_HEADLINE';
 export class UnsupportedAIClaimError extends ApiError {
   readonly validationIssues:SafeValidationIssue[];
   constructor(path:string,rule:ClaimRule,message='상세 풀이에 확인되지 않은 내용이 있어요. 기본 풀이는 그대로 볼 수 있어요.') {
@@ -112,8 +113,15 @@ export function validateReading(value:unknown,profile:AIProfile):Reading {
   }
   if(reading.monthly) for(const key of ['opportunity','caution','action'] as const) {
     const ids=reading.monthly[key].evidence;
-    if(ids.some(id=>!allowed.has(id)) || !ids.some(id=>id.startsWith('month:')) || !ids.some(id=>id==='day-element'||id==='polarity'||id==='season'||id.startsWith('element:')||id.startsWith('ten-god:'))) throw new ApiError(502,'INVALID_AI_EVIDENCE','이번 달 풀이의 사주 근거를 확인하지 못했어요.');
+    const facts=selectedEvidence(profile,ids);
+    if(ids.some(id=>!allowed.has(id)) || facts.filter(f=>f.kind==='month').length!==1 || !facts.some(f=>f.kind==='natal'&&f.gods.length>0)) throw new ApiError(502,'INVALID_AI_EVIDENCE','이번 달 풀이의 사주 근거를 확인하지 못했어요.');
+    const gods=new Set(facts.flatMap(f=>f.gods));
+    const body=reading.monthly[key].body;
+    const natal=body.match(new RegExp(`내 사주의 (${TEN_GODS.join('|')})`))?.[1];
+    const month=body.match(new RegExp(`이 기간의 (${TEN_GODS.join('|')})`))?.[1];
+    if(!natal || !month || !facts.some(f=>f.kind==='natal'&&f.gods.includes(natal)) || !facts.some(f=>f.kind==='month'&&f.gods.includes(month)) || TEN_GODS.some(god=>body.includes(god)&&!gods.has(god))) throw new UnsupportedAIClaimError(`monthly.${key}.body`,'UNSUPPORTED_MONTHLY_REASON');
   }
+  if(reading.monthly && /(?:약속은 확인하고|배울 일은|여러 가지를 조심|기회를 살펴|흐름을 살펴|하나만 골라요)/.test(reading.monthly.headline))throw new UnsupportedAIClaimError('monthly.headline','VAGUE_HEADLINE');
   const fields=[{path:'headline',text:reading.headline},{path:'intro',text:reading.intro},...SECTION_KEYS.flatMap(key=>['title','body','tip'].map(field=>({path:`sections.${key}.${field}`,text:reading.sections[key][field as 'title'|'body'|'tip']}))),...(reading.monthly?[{path:'monthly.headline',text:reading.monthly.headline},...(['opportunity','caution','action'] as const).flatMap(key=>['title','body'].map(field=>({path:`monthly.${key}.${field}`,text:reading.monthly![key][field as 'title'|'body']})))]:[])];
   let offset=0;
   const ranges=fields.map(field=>{const start=offset;offset+=field.text.length+1;return {...field,start};});
@@ -122,10 +130,13 @@ export function validateReading(value:unknown,profile:AIProfile):Reading {
   // Preserve the existing joined-text checks, including matches across field boundaries.
   const pillar=pillarPattern.exec(text);
   if(pillar)throw claimError(pillar.index,'PILLAR_OR_BIRTH_INFORMATION');
-  const unsafe=unsafePattern.exec(text);
+  const unsafe=unsafePattern.exec(text)??/사주상?\s*최악|망할|파멸|불행이|큰일\s*납니다|절대로?\s*하면\s*안/.exec(text);
   if(unsafe)throw claimError(unsafe.index,/\d/.test(unsafe[0])?'EXACT_DATE_OR_TIME':/수익|주가/.test(unsafe[0])?'GUARANTEED_FINANCIAL_OUTCOME':/암|우울증|질환|병/.test(unsafe[0])?'MEDICAL_CLAIM':'FATALISTIC_CLAIM');
-  const terminology=/일간|십신|십성|천간|간지|년주|월주|시주|대운|오행|음양|격국|용신|일주(?!일)|지지\s*의\s*기운/.exec(text);
-  if(terminology)throw claimError(terminology.index,'PROHIBITED_TERMINOLOGY');
+  for(const field of ranges){
+    // The requested rationale may explain the verified relations in ordinary Hangul.
+    const pattern=/^monthly\.(opportunity|caution|action)\.body$/.test(field.path)?/격국|용신|신강|신약|삼합|천간합|지지충|형충|대운/:/일간|십신|십성|천간|간지|년주|월주|시주|대운|오행|음양|격국|용신|일주(?!일)|지지\s*의\s*기운/;
+    if(pattern.test(field.text))throw new UnsupportedAIClaimError(field.path,'PROHIBITED_TERMINOLOGY');
+  }
   const allowedYears=new Set(profile.annual.map(a=>a.year));
   for(const match of text.matchAll(/(\d{4})\s*년/g)) if(!allowedYears.has(Number(match[1]))) throw claimError(match.index,'UNSUPPORTED_YEAR','상세 풀이에 없는 연도가 있어요.');
   const elementWords:Record<string,typeof ELEMENTS[number]>={나무:'wood',불:'fire',흙:'earth',쇠:'metal',물:'water'};
