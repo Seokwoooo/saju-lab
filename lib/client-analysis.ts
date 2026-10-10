@@ -58,14 +58,14 @@ export async function requestReading(profile:AIProfile,{signal,onStatus,fetcher=
 async function readProgressStream(response:Response,signal:AbortSignal,onStatus?:(stage:AnalysisStage)=>void):Promise<AIResponse> {
   if(!response.body)throw new Error('풀이 연결이 끊겼어요. 다시 시도해 주세요.');
   const reader=response.body.getReader(); const decoder=new TextDecoder();
-  let buffer=''; let bytes=0;
+  let buffer=''; let bytes=0;let finished=false;let payload:AIResponse|undefined;
   const abort=()=>{void reader.cancel().catch(()=>{});};
   signal.addEventListener('abort',abort,{once:true});
   try {
     while(true) {
       if(signal.aborted)throw cancelled();
       const {done,value}=await reader.read();
-      if(done)break;
+      if(done){finished=true;break;}
       bytes+=value.byteLength;if(bytes>131072)throw new Error('풀이 응답을 확인하지 못했어요.');
       buffer+=decoder.decode(value,{stream:true});
       let newline:number;
@@ -73,11 +73,13 @@ async function readProgressStream(response:Response,signal:AbortSignal,onStatus?
         const line=buffer.slice(0,newline);buffer=buffer.slice(newline+1);if(!line.trim())continue;
         const event=JSON.parse(line) as AnalysisEvent;
         if(event.type==='progress' && ['accepted','retrying','verified'].includes(event.stage))onStatus?.(event.stage);
-        else if(event.type==='error')return {error:event.error,code:event.code,retryAfter:event.retryAfter};
-        else if(event.type==='result' && event.reading?.source==='ai') {onStatus?.('complete');return {reading:event.reading};}
+        else if(event.type==='error')payload={error:event.error,code:event.code,retryAfter:event.retryAfter};
+        else if(event.type==='result' && event.reading?.source==='ai')payload={reading:event.reading};
       }
     }
     if(signal.aborted)throw cancelled();
+    // EOF follows the server's lease cleanup; cancelling at the result event can interrupt it.
+    if(payload){if(payload.reading)onStatus?.('complete');return payload;}
     throw new Error('풀이 연결이 끊겼어요. 다시 시도해 주세요.');
-  } finally {signal.removeEventListener('abort',abort);await reader.cancel().catch(()=>{});reader.releaseLock();}
+  } finally {signal.removeEventListener('abort',abort);if(!finished)await reader.cancel().catch(()=>{});reader.releaseLock();}
 }

@@ -51,6 +51,25 @@ describe('automatic analysis transport', () => {
 });
 
 describe('real server milestone stream',()=>{
+  it.each(['result','error'] as const)('waits for the server to finish cleanup after a %s event without cancelling the connection',async type=>{
+    let stream!:ReadableStreamDefaultController<Uint8Array>;
+    const cancel=vi.fn();const stages:string[]=[];let settled=false;
+    const event=type==='result'?{type,reading}:{type,error:'풀이를 완성하지 못했어요.'};
+    const fetcher:typeof fetch=async url=>String(url).endsWith('challenge')?Response.json({challenge:{token:'test',difficulty:0,expiresAt:Date.now()+60000}}):new Response(new ReadableStream({start(c){stream=c;},cancel}),{headers:{'content-type':'application/x-ndjson'}});
+    const promise=requestReading(chart.profile,{signal:new AbortController().signal,fetcher,onStatus:s=>stages.push(s)}).then(value=>{settled=true;return value;},error=>{settled=true;throw error;});
+    const outcome=type==='result'?expect(promise).resolves.toMatchObject(reading):expect(promise).rejects.toThrow('완성하지');
+    await vi.waitFor(()=>expect(stream).toBeDefined());
+    stream.enqueue(new TextEncoder().encode(JSON.stringify(event)+'\n'));
+    // Drain the already-enqueued event while the server still owns the lease.
+    await new Promise(resolve=>setTimeout(resolve,0));
+    const earlySettlement=settled;const earlyCompletion=stages.includes('complete');const earlyCancel=cancel.mock.calls.length;
+    if(!earlyCancel)stream.close();
+    await outcome;
+    expect(earlySettlement).toBe(false);
+    expect(earlyCompletion).toBe(false);
+    expect(cancel).not.toHaveBeenCalled();
+    expect(stages.includes('complete')).toBe(type==='result');
+  });
   it('does not advance while the provider is pending and reaches 100 only with a result',async()=>{
     let stream!:ReadableStreamDefaultController<Uint8Array>;
     const stages:string[]=[];

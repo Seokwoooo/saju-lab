@@ -13,7 +13,7 @@ The monthly opportunity, caution and action all interpret the **whole Korean civ
 3. `verified` only after provider identity and reading content/evidence validation succeeds.
 4. A validated `result`, or an explicit `error`.
 
-No partial model prose or reasoning is streamed. The stream owns the D1 lease until cleanup. Client disconnect cancels the provider, retains the reserved budget and releases the concurrency lease.
+No partial model prose or reasoning is streamed. The stream owns the D1 lease until cleanup. The client consumes the stream through its natural end after the final event, allowing the server to finish lease cleanup before showing completion. Client disconnect cancels the provider, retains the reserved budget and releases the concurrency lease.
 
 The displayed percentage is **completed-stage progress**, not elapsed-time animation or estimated generated-token percentage: browser calculation 25%, admitted request 50%, validated reading 75%, result received 100%. The screen says this directly. The 30–60 second estimate is based on observed recent roughly 36-second successful runs; it is not a guarantee. Elapsed time is real. Slow/retry status explains the roughly 100-second client deadline. No artificial delay is added after completion.
 
