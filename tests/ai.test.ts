@@ -87,6 +87,21 @@ describe('verified provider lanes with bounded attempts',()=>{
     expect(entries[0]).toMatchObject({reason:'INVALID_AI_OUTPUT',validationIssues:[{path:'intro',code:'custom',rule:'NO_HANJA'}]});
     expect(JSON.stringify(entries)).not.toContain('private-hanja-output');
   });
+  it.each([
+    {path:'intro',rule:'EXACT_DATE_OR_TIME',invalid:{...reading,intro:'시각은 12시예요. private-claim-text'}},
+    {path:'headline',rule:'ELEMENT_COUNT_MISMATCH',invalid:{...reading,headline:'나무는 9개예요. private-claim-text'}},
+    {path:'sections.money.body',rule:'GUARANTEED_FINANCIAL_OUTCOME',invalid:{...reading,sections:{...reading.sections,money:{...reading.sections.money,body:'수익률 보장이 있어요. private-claim-text'}}}},
+    {path:'sections.year.body',rule:'UNSUPPORTED_YEAR',invalid:{...reading,sections:{...reading.sections,year:{...reading.sections.year,body:'2039년을 살펴봐요. private-claim-text'}}}},
+    {path:'sections.love.title',rule:'PROHIBITED_TERMINOLOGY',invalid:{...reading,sections:{...reading.sections,love:{...reading.sections.love,title:'대운을 살펴봐요'}}}},
+  ])('identifies rejected claim rule $rule at a safe field path without text',async({path,rule,invalid})=>{
+    const log=vi.spyOn(console,'warn').mockImplementation(()=>{});let calls=0;
+    const fetcher=vi.fn(async()=>Response.json(completion(++calls===1,calls===1?'openai/gpt-5.6-luna':'openai/gpt-6-luna',calls===1?'Azure':'OpenAI',invalid)));
+    await expect(runReading(profile,config(),'safe-claim-failure',undefined,fetcher)).rejects.toMatchObject({code:'AI_FAILED'});
+    const entries=log.mock.calls.map(args=>JSON.parse(String(args[0])));
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({reason:'UNSUPPORTED_AI_CLAIM',validationIssues:[{path,code:'custom',rule}]});
+    expect(JSON.stringify(entries)).not.toContain('private-claim-text');
+  });
   it('sends supported field lengths, plain Korean pattern and bounded evidence in the wire schema',()=>{
     const format=makeProviderRequest(profile,config()).response_format;
     expect(format).toMatchObject({type:'json_schema',json_schema:{schema:{properties:{headline:{type:'string',minLength:2,maxLength:70,pattern:expect.any(String)},intro:{minLength:2,maxLength:300},sections:{properties:{personality:{properties:{title:{minLength:2,maxLength:40},body:{minLength:2,maxLength:450},tip:{minLength:2,maxLength:120},evidence:{minItems:1,maxItems:5}}},year:{properties:{evidence:{items:{enum:['annual:2026']}}}}}}}}}});
@@ -104,12 +119,16 @@ describe('verified provider lanes with bounded attempts',()=>{
     await expect(runReading(profile,config(),'request-5',undefined,fetcher)).rejects.toMatchObject({code:'AI_FAILED'});
     expect(calls).toBe(2);
   });
-  it('times out each lane once and aborts the underlying request',async()=>{
+  it('allows 45 seconds for primary, then exactly 25 for fallback, aborting both without another retry',async()=>{
     vi.useFakeTimers();let calls=0,aborted=0;
     const fetcher=vi.fn((_url:string|URL|Request,init?:RequestInit)=>new Promise<Response>((_resolve,reject)=>{calls++;init?.signal?.addEventListener('abort',()=>{aborted++;reject(new DOMException('aborted','AbortError'));},{once:true});}));
     const promise=runReading(profile,config(),'request-6',undefined,fetcher);
     const assertion=expect(promise).rejects.toMatchObject({code:'AI_FAILED'});
-    await vi.advanceTimersByTimeAsync(50_100);await assertion;
+    await vi.advanceTimersByTimeAsync(44_999);
+    expect(calls).toBe(1);expect(aborted).toBe(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(calls).toBe(2);expect(aborted).toBe(1);
+    await vi.advanceTimersByTimeAsync(25_000);await assertion;
     expect(calls).toBe(2);expect(aborted).toBe(2);
   });
   it('client cancellation aborts primary and prevents fallback',async()=>{

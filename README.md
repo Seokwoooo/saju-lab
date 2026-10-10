@@ -4,7 +4,7 @@
 
 Made with ♡ by Lucian
 
-- 사이트: [사주랩](https://saju-lab-lucian.lucian-sw-kim.chatgpt.site)
+- 사이트: [사주랩](https://saju.lucianlabs.dev)
 - 저장소: [Seokwoooo/saju-lab](https://github.com/Seokwoooo/saju-lab)
 - 연락·버그·제안: [GitHub Issues](https://github.com/Seokwoooo/saju-lab/issues). 공개 글에 출생정보나 비밀키를 넣지 마세요.
 

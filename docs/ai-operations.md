@@ -57,7 +57,7 @@ Azure 배포의 TPM/RPM 용량도 확인한다. 작은 BYOK probe 성공은 전�
 - 이미 사용된 challenge hash는 재사용 불가.
 - 작업마다 `AI_JOB_RESERVE_USD` 전체 예약(기본 $0.10, 설정 범위 $0.04~$20). primary 실패/취소/timeout도 예약 비용은 환불하지 않는다.
 
-예약 row가 최대 200개/일로 제한되어 조회·정리가 작고 유한하다. 성공/실패/클라이언트 취소 모두 `finally`에서 임대만 해제한다. DB 해제 실패 시 120초 임대 만료까지 보수적으로 점유한다. 작업 TTL은 primary 25초와 fallback 25초 합보다 길다. DB 오류는 fail closed다.
+예약 row가 최대 200개/일로 제한되어 조회·정리가 작고 유한하다. 성공/실패/클라이언트 취소 모두 `finally`에서 임대만 해제한다. DB 해제 실패 시 120초 임대 만료까지 보수적으로 점유한다. 작업 TTL은 primary 45초와 fallback 25초의 최대 70초 합보다 길다. DB 오류는 fail closed다.
 
 `AI_DAILY_CALL_LIMIT`와 `AI_DAILY_BUDGET_USD`는 기본 상한보다 낮출 수 있다. per-IP/동시성 상한은 코드에서 고정한다. 작업 예약은 일일 예산 이하여야 하며 비싼 Azure 모델의 양쪽 lane 최대 비용을 덮도록 설정한다. 하루 $20 예산에서 $0.5 예약은 일일 최대 40개다. 기본 $0.10 예약은 최대 200개다. 더 낮은 작업 예약을 사용하더라도 코드의 200개 상한을 넘지 않는다.
 
@@ -67,17 +67,17 @@ Azure 배포의 TPM/RPM 용량도 확인한다. 작은 BYOK probe 성공은 전�
 
 fallback은 정확히 `openai/gpt-6-luna` + `only=["openai"]`, `ignore=["azure"]`, `allow_fallbacks=false`로 요청하며 실제 `is_byok=false`를 확인한다. 응답 model은 요청 slug 또는 검증된 동일 모델의 dated alias `openai/gpt-6-luna-20260922` 하나만 허용한다. 다른 모델로 대체하지 않는다. 모델이 계정에서 제공되지 않거나 잔액이 부족하면 실패로 반환한다.
 
-각 lane 전체 제한은 25초이며 헤더 수신 뒤 본문 읽기와 metadata 확인도 포함한다. fetch에 AbortSignal을 전달하고 클라이언트 취소 시 추가 lane을 실행하지 않는다. 클라이언트 취소로 upstream 과금이 항상 멈춘다고 보장하지 않으므로 예약은 유지한다.
+primary 전체 제한은 45초, fallback은 25초이며 헤더 수신 뒤 본문 읽기와 metadata 확인도 포함한다. fetch에 AbortSignal을 전달하고 클라이언트 취소 시 추가 lane을 실행하지 않는다. 클라이언트 취소로 upstream 과금이 항상 멈춘다고 보장하지 않으므로 예약은 유지한다.
 
-`AI_PRIMARY_REASONING_EFFORT`는 `none`(서버 기본), `low`, `medium`, `high`만 허용한다. `none`은 `reasoning: { enabled: false }`를 요청한다. Sol처럼 추론을 끌 수 없는 endpoint는 운영 예제의 `low`를 사용하며 `reasoning: { effort: "low", exclude: true }`를 전송한다. fallback은 항상 `reasoning: { enabled: false }`다. 내부 추론은 API나 로그에 내보내지 않는다. 추론이 활성화된 primary도 3,200 기본 출력 token 상한과 25초 전체 timeout, 동일한 예약 예산을 적용하며 추론 token은 제공자의 completion 상한에 포함되어야 한다. 해당 endpoint의 파라미터 지원과 전체 응답을 실제로 확인한다.
+`AI_PRIMARY_REASONING_EFFORT`는 `none`(서버 기본), `low`, `medium`, `high`만 허용한다. `none`은 `reasoning: { enabled: false }`를 요청한다. Sol처럼 추론을 끌 수 없는 endpoint는 운영 예제의 `low`를 사용하며 `reasoning: { effort: "low", exclude: true }`를 전송한다. fallback은 항상 `reasoning: { enabled: false }`다. 내부 추론은 API나 로그에 내보내지 않는다. 추론이 활성화된 primary도 3,200 기본 출력 token 상한과 45초 primary 전체 timeout, 동일한 예약 예산을 적용하며 추론 token은 제공자의 completion 상한에 포함되어야 한다. 해당 endpoint의 파라미터 지원과 전체 응답을 실제로 확인한다.
 
 기본 출력 상한은 3,200 tokens이며 설정 범위는 1,000~3,500이다. primary에는 설정된 max_price(기본 prompt $2/M, completion $10/M), fallback에는 고정 prompt $0.1/M, completion $0.5/M를 적용한다. 양쪽 모두 request $0로 단건 추가 가격을 차단한다. 서버는 JSON schema와 메시지의 UTF-8 byte 수 및 여유 512 tokens를 보수적인 입력 token 상한으로 사용해 primary 최대 비용 + primary의 5% BYOK fee + fallback 최대 비용이 `AI_JOB_RESERVE_USD` 이내인지 요청 전에 확인한다. 설정으로 이 예산을 넘으면 유료 호출 없이 503으로 실패한다. primary 가격 설정의 코드 상한은 prompt $100/M, completion $200/M이며 입력이 큰 프로필에서 예약을 넘는 조합은 거부한다. 실제 선택 모델 가격을 검증한 뒤 그 모델을 수용하는 가격 cap과 작업 예약을 설정한다. 예약 검사를 우회하거나 다른 모델로 바꾸지 않는다. 실제 응답 비용도 점검한다. 외부 제공자가 가격 제한을 준수한다는 경계는 남는다.
 
 출력은 schema를 명시하며 지원 endpoint에서는 strict JSON schema를 요구한다. json_object 경로에서도 결과를 동일하게 Zod로 검사한다. wire schema와 prompt는 headline 2~70자, intro 2~300자, title 2~40자, body 2~450자, tip 2~120자와 evidence 1~5개를 명시한다. wire pattern은 한국어 포함, 한자·HTML 꺾쇠 제외를 요구한다. year/cycles는 해당 연도/시기 ID만 선택하도록 schema를 좁힌다. `source`는 모델이 보낼 수 없다. 9개 섹션/짧은 한국어/유효한 근거 ID/길이 제한을 검사하며 HTML, 코드, 링크, 한자와 사주 전문용어, 없는 연도·정확한 날짜·출생시각·기둥·확정적 질병/죽음/수익 주장, 명시적인 오행·십성 수/일간/연도 오행 불일치를 거부한다. 나무·불·흙·쇠·물과 일상 언어로 설명하도록 요청한다. 문자열 패턴 검사와 근거 ID 검사는 자유 문장 전체의 의미적 정답을 증명하지 않는다. 풀이를 전통적 자기 성찰 자료로 표시하고 계산 결과가 별도 기준으로 남아야 한다.
 
-문체 목표는 특징에 근거한 정체성 headline, 다정한 해요체, section당 약 120~220자의 짧은 3문장이다. 특징·조건부 일상 장면·강점과 부담의 균형을 연결하며 각 tip은 행동 하나로 끝낸다. 관계·연애·일·돈은 서로 다른 관점으로 설명한다. 문화적 해석 안내는 intro에 모으고, 실제 시간/경계 불확실성이나 빈 시기 자료의 제한만 필요한 곳에서 알린다. 이 문체 목표를 위해 기존 최대 길이·검증·3,200 token·25초 제한을 늘리지 않는다.
+문체 목표는 특징에 근거한 정체성 headline, 다정한 해요체, section당 약 120~220자의 짧은 3문장이다. 특징·조건부 일상 장면·강점과 부담의 균형을 연결하며 각 tip은 행동 하나로 끝낸다. 관계·연애·일·돈은 서로 다른 관점으로 설명한다. 문화적 해석 안내는 intro에 모으고, 실제 시간/경계 불확실성이나 빈 시기 자료의 제한만 필요한 곳에서 알린다. 이 문체 목표를 위해 기존 최대 길이·검증·3,200 token 상한을 유지한다. primary 45초·fallback 25초 제한은 실제 응답 지연을 근거로 별도로 적용한다.
 
-앱 진단 로그에는 무작위 request ID, model, provider, 실제 BYOK boolean, generation ID, cost와 upstream cost를 남긴다. 실패 시에는 요청 model/provider, HTTP status와 서버가 정한 고정 reason code를 추가한다. Zod 실패는 최대 8개의 `validationIssues`에 서버 schema의 허용된 field path와 정적 issue code/rule만 기록한다. 알 수 없는 key는 `?`, 배열 인덱스는 `[]`로 가리고 값·메시지·알 수 없는 key 이름은 기록하지 않는다. 예: `{"path":"intro","code":"too_big"}`, `{"path":"sections.love.body","code":"custom","rule":"NO_HANJA"}`. 제공자 오류 본문은 길이를 제한해 분류만 하고 메시지를 로그로 내보내지 않는다. 프롬프트·응답·원본 IP·hash·출생정보를 로그로 내보내지 않는다. 플랫폼의 접근 로그 설정은 별도로 관리한다.
+앱 진단 로그에는 무작위 request ID, model, provider, 실제 BYOK boolean, generation ID, cost와 upstream cost를 남긴다. 실패 시에는 요청 model/provider, HTTP status와 서버가 정한 고정 reason code를 추가한다. Zod 실패는 최대 8개의 `validationIssues`에 서버 schema의 허용된 field path와 정적 issue code/rule만 기록한다. 알 수 없는 key는 `?`, 배열 인덱스는 `[]`로 가리고 값·메시지·알 수 없는 key 이름은 기록하지 않는다. 예: `{"path":"intro","code":"too_big"}`, `{"path":"sections.love.body","code":"custom","rule":"NO_HANJA"}`. UNSUPPORTED_AI_CLAIM도 같은 형식으로 실제 match가 시작된 안전한 field path와 정적 rule만 기록한다. rule은 기둥/출생정보, 정확한 날짜/시각, 확정적 수익·의료·운명 주장, 전문용어, 없는 연도, 수치·연도 오행 불일치를 구분한다. 문장 검사 조건과 순서는 유지하며 값을 기록하지 않는다. 제공자 오류 본문은 길이를 제한해 분류만 하고 메시지를 로그로 내보내지 않는다. 프롬프트·응답·원본 IP·hash·출생정보를 로그로 내보내지 않는다. 플랫폼의 접근 로그 설정은 별도로 관리한다.
 
 ## 검증 범위와 운영 중지
 

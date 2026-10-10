@@ -4,6 +4,14 @@ import type { ConnectorBinding } from "../lib/connector-contract.mjs";
 
 export default {
   async fetch(request: Request, env: Cloudflare.Env, ctx: ExecutionContext<{ CONNECTORS?: ConnectorBinding }>) {
+    const requestedUrl = new URL(request.url);
+    const canonical = env.SITE_URL ? new URL(env.SITE_URL) : null;
+    if (!import.meta.env.DEV && canonical?.protocol === 'https:' &&
+        !canonical.hostname.endsWith('.chatgpt.site') &&
+        requestedUrl.hostname.endsWith('.chatgpt.site') &&
+        ['GET', 'HEAD'].includes(request.method)) {
+      return Response.redirect(new URL(requestedUrl.pathname + requestedUrl.search, canonical), 308);
+    }
     let binding = ctx.props?.CONNECTORS;
     // Local preview emulates the same request-scoped capability. This branch and
     // the auxiliary service binding are absent from production builds.

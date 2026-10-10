@@ -1,7 +1,7 @@
 import { SECTION_KEYS, type AIProfile, type Reading } from '../contracts';
 import { ApiError } from './errors';
 import { type AIConfig, unavailable } from './config';
-import { evidenceIds, readBoundedJson, validateReading, OUTPUT_TEXT_LIMITS, KOREAN_OUTPUT_PATTERN, InvalidAIOutputError, safeValidationIssues, type SafeValidationIssue } from './validation';
+import { evidenceIds, readBoundedJson, validateReading, OUTPUT_TEXT_LIMITS, KOREAN_OUTPUT_PATTERN, InvalidAIOutputError, UnsupportedAIClaimError, safeValidationIssues, type SafeValidationIssue } from './validation';
 import { z } from 'zod';
 
 const API='https://openrouter.ai/api/v1';
@@ -71,7 +71,7 @@ async function httpError(response:Response):Promise<ProviderAttemptError> {
 function failureDiagnostics(error:unknown,requestId:string,config:AIConfig,fallback:boolean) {
   const reason=error instanceof ProviderAttemptError?error.reason:error instanceof ApiError?error.code:error instanceof SyntaxError?'INVALID_AI_JSON':error instanceof z.ZodError?'INVALID_GENERATION_METADATA':'NETWORK_ERROR';
   const status=error instanceof ProviderAttemptError?error.status??null:error instanceof ApiError?error.status:null;
-  const validationIssues=error instanceof InvalidAIOutputError || error instanceof ProviderAttemptError?error.validationIssues:error instanceof z.ZodError?safeValidationIssues(error.issues):undefined;
+  const validationIssues=error instanceof InvalidAIOutputError || error instanceof UnsupportedAIClaimError || error instanceof ProviderAttemptError?error.validationIssues:error instanceof z.ZodError?safeValidationIssues(error.issues):undefined;
   console.warn(JSON.stringify({requestId,model:fallback?FALLBACK_MODEL:config.primaryModel,provider:fallback?'OpenAI':'Azure',status,reason,...(validationIssues?.length?{validationIssues}:{})}));
 }
 interface Diagnostics {requestId:string;model:string;provider:string;byok:boolean;generationId:string;cost:number;upstreamCost:number|null}
@@ -120,7 +120,7 @@ async function lane(profile:AIProfile,config:AIConfig,requestId:string,fallback:
     if((cost+(byok?(upstreamCost??0):0))*1_000_000>generationCostUpperMicros(requestBody,config,fallback)) throw new ProviderAttemptError('GENERATION_OVER_BUDGET');
     const reading=validateReading(JSON.parse(completion.choices[0].message.content),profile);
     return reading;
-  },25_000,parent);
+  },fallback?25_000:45_000,parent);
 }
 export async function runReading(profile:AIProfile,config:AIConfig,requestId:string,signal?:AbortSignal,fetcher:typeof fetch=fetch):Promise<Reading> {
   makeProviderRequest(profile,config); // Refuse unsafe price/token configuration before any paid call.
