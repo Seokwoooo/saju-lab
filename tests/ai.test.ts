@@ -5,7 +5,7 @@ import { validateReading } from '../lib/server/validation';
 import { SECTION_KEYS, type AIProfile } from '../lib/contracts';
 
 const profile:AIProfile={version:1,dayElement:'wood',polarity:'yang',elementCounts:{wood:2,fire:1,earth:1,metal:1,water:1},tenGodCounts:{비견:1,정인:1},season:'봄',timeKnown:false,boundaryUncertain:false,cycles:[],annual:[{year:2026,element:'fire'}],analysisYear:2026};
-const reading={headline:'나무처럼 천천히 자라는 마음',intro:'이 풀이는 전통 사주를 참고한 자기 성찰 이야기예요.',sections:Object.fromEntries(SECTION_KEYS.map(key=>[key,{title:'내 마음 살펴보기',body:'나무의 기운을 참고해 지금 마음을 살펴보세요.',tip:'오늘은 작은 일을 하나 적어 보세요.',evidence:[key==='year'?'annual:2026':'day-element']}]))};
+const reading={headline:'신중히 생각하고 끝까지 해내는 사람',intro:'이 풀이는 전통 사주를 참고한 자기 성찰 이야기예요.',sections:Object.fromEntries(SECTION_KEYS.map(key=>[key,{title:'결정 전에 충분히 생각해요',body:'중요한 선택을 할 때 장단점을 먼저 비교하는 편이에요.',tip:'고민하는 선택 하나에 마감일을 정해 보세요.',evidence:[key==='year'?'annual:2026':'day-element']}]))};
 const config=()=>getConfig({AI_ENABLED:'true',SITE_URL:'https://saju.test',OPENROUTER_API_KEY:'test-key',OPENROUTER_AZURE_MODEL:'openai/gpt-5.6-luna',AI_AZURE_BYOK_ONLY_CONFIRMED:'true',AI_IP_HMAC_KEY:'test-hmac-key-at-least-32-characters',DB:{} as D1Database});
 const completion=(byok:boolean|'unknown'=true,model='openai/gpt-5.6-luna',provider='Azure',content=reading)=>({id:'gen-test123',model,provider,choices:[{finish_reason:'stop',message:{role:'assistant',content:JSON.stringify(content)}}],usage:{prompt_tokens:200,completion_tokens:900,total_tokens:1100,cost:0.001,...(byok==='unknown'?{}:{is_byok:byok}),cost_details:{upstream_inference_cost:byok?0.001:0}}});
 afterEach(()=>{vi.useRealTimers();vi.restoreAllMocks();});
@@ -170,6 +170,12 @@ describe('verified provider lanes with bounded attempts',()=>{
 });
 
 describe('AI response boundary',()=>{
+  it.each(['나무의 리듬을 따라가요','서로 다른 빛깔을 만나 보세요','수의 기운을 보완해요','타고난 결을 넓혀 보세요'])('rejects opaque symbolic language: %s',headline=>{
+    expect(()=>validateReading({...reading,headline},profile)).toThrow();
+  });
+  it('rejects a fabricated age period when no cycles were calculated',()=>{
+    expect(()=>validateReading({...reading,sections:{...reading.sections,cycles:{...reading.sections.cycles,body:'30~39세에 새로운 일을 시작하기 좋아요.'}}},profile)).toThrow();
+  });
   it('accepts an honest missing-hour-pillar explanation without inventing a pillar',()=>{
     expect(validateReading({...reading,intro:'태어난 시간을 몰라 계산 범위를 줄였어요. 전통 해석을 자기 성찰 자료로 참고해 주세요.'},profile).source).toBe('ai');
   });

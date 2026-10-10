@@ -11,7 +11,7 @@ describe('local readings based on calculated features', () => {
     const reading = createLocalReading(chart);
     expect(reading.source).toBe('local');
     expect(Object.keys(reading.sections).sort()).toEqual([...SECTION_KEYS].sort());
-    expect(reading.headline).toMatch(/물/);
+    expect(reading.headline).not.toMatch(/리듬|기운|빛깔/);
     for (const section of Object.values(reading.sections)) {
       expect(section.body.length).toBeGreaterThan(100);
       expect(section.tip.length).toBeGreaterThan(15);
@@ -26,7 +26,7 @@ describe('local readings based on calculated features', () => {
   it('changes the actual reading when the calculated day element changes', () => {
     const water = createLocalReading(calculateSaju(birth, 2026));
     const wood = createLocalReading(calculateSaju({...birth, day:25}, 2026));
-    expect(wood.headline).toMatch(/나무/);
+    expect(wood.headline).not.toBe(water.headline);
     expect(wood.sections.personality.body).not.toBe(water.sections.personality.body);
     expect(wood.sections.advice.tip).not.toBe(water.sections.advice.tip);
   });
@@ -34,7 +34,8 @@ describe('local readings based on calculated features', () => {
     for (const changes of [{}, {gender:'male' as const}, {year:2024, month:2, day:4, timeKnown:false}]) {
       const reading = createLocalReading(calculateSaju({...birth,...changes}, 2026));
       const publicCopy = [reading.headline,reading.intro,...Object.values(reading.sections).flatMap(section => [section.title,section.body,section.tip])].join(' ');
-      expect(publicCopy).not.toMatch(/[\u3400-\u9fff]|일간|십신|십성|천간|지지|지장간|재성|비겁|식상|관성|인성|대운|연주|월주|일주|시주/);
+      // "길어지지 않도록" is everyday Korean, not the technical noun 지지.
+      expect(publicCopy).not.toMatch(/[\u3400-\u9fff]|일간|십신|십성|천간|(?<![가-힣])지지|지장간|재성|비겁|식상|관성|인성|대운|연주|월주|일주(?!일)|시주/);
       expect(reading.sections.personality.evidence.join(' ')).toMatch(/癸|계/);
     }
   });

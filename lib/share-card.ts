@@ -38,7 +38,7 @@ export function createCardContent(options: {
   return {
     type,
     headline: cleanText(type === 'compatibility' ? compatibility!.title : type === 'headline' ? reading.headline : type === 'balance' ? '다섯 빛깔로 이루어진 나' : section.title, 160),
-    body: selectCardExcerpt(type === 'compatibility' ? compatibility!.summary : type === 'headline' ? reading.intro : type === 'balance' ? '많고 적음은 좋고 나쁨이 아니에요. 나의 서로 다른 결을 만나 보세요.' : section.body, type === 'headline' ? 72 : type === 'compatibility' ? 65 : type === 'year' ? 110 : 90),
+    body: selectCardExcerpt(type === 'compatibility' ? compatibility!.summary : type === 'headline' ? reading.intro : type === 'balance' ? '사주 글자를 다섯 종류로 나누어 센 비율이에요. 성격이나 능력의 점수는 아니에요.' : section.body, type === 'headline' ? 72 : type === 'compatibility' ? 65 : type === 'year' ? 110 : 90),
     tip: selectCardExcerpt(type === 'compatibility' ? compatibility!.advice : section.tip, 70),
     ...(options.showNickname && options.nickname?.trim() ? { nickname: cleanText(options.nickname, 20) } : {}),
     elements: type === 'compatibility' ? [...compatibility!.elements] : [chart.dayElement],
@@ -103,8 +103,14 @@ export function fitCardText(text: string, measure: (text: string) => number, max
   for (let i = 0; i < characters.length; i++) {
     const next = characters[i];
     if (current && measure(current + next) > maxWidth) {
-      lines.push(current.trim());
-      current = next.trimStart();
+      const wordBreak = current.lastIndexOf(' ');
+      if (wordBreak > 0 && next !== ' ') {
+        lines.push(current.slice(0,wordBreak).trim());
+        current = current.slice(wordBreak+1) + next;
+      } else {
+        lines.push(current.trim());
+        current = next.trimStart();
+      }
       if (lines.length === maxLines) {
         let last = lines[maxLines - 1];
         while (last && measure(`${last}…`) > maxWidth) last = Array.from(last).slice(0, -1).join('');

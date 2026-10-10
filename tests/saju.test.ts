@@ -218,7 +218,7 @@ describe('validation and privacy boundary', () => {
   });
   it('only exports derived whitelisted AI fields and never raw identifiers', () => {
     const chart = calculateSaju(birth({name: '개인정보_TEST', gender: 'female'}), 2026);
-    expect(Object.keys(chart.profile).sort()).toEqual(['version','dayElement','polarity','elementCounts','tenGodCounts','season','timeKnown','boundaryUncertain','cycles','annual','analysisYear'].sort());
+    expect(Object.keys(chart.profile).sort()).toEqual(['version','dayElement','polarity','elementCounts','tenGodCounts','season','timeKnown','boundaryUncertain','cycles','annual','analysisYear','currentMonth'].sort());
     expect(Object.keys(chart.profile.tenGodCounts).sort()).toEqual(['비견','겁재','식신','상관','편재','정재','편관','정관','편인','정인'].sort());
     expect(JSON.stringify(chart.profile)).not.toMatch(/개인정보_TEST|1992|1992-10-24|female|birth|hour|minute|name|gender|solarDate|lunarDate/);
     expect(Object.keys(chart.profile.cycles[0]).sort()).toEqual(['startAge','endAge','element'].sort());

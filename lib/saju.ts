@@ -7,6 +7,7 @@ import {
   type HeavenlyStem, type Pillar as EnginePillar, type SolarDate,
 } from 'manseryeok';
 import {ELEMENT_LABELS, type Annual, type BirthInput, type Element, type Pillar, type SajuChart} from './contracts';
+import { calculateMonthlyContext } from './monthly';
 
 // Full years after Korean standard-time introduction, within the KASI-backed lunar table.
 export const SUPPORTED_MIN_YEAR = 1909;
@@ -112,7 +113,7 @@ function annualFor(year: number): Annual {
   return {year, pillar, element, description:`${year}년 입춘부터 다음 입춘까지의 ${stem}${branch}년. ${ELEMENT_LABELS[element]}의 상징을 한 해의 계획을 돌아보는 질문으로 활용해요.`};
 }
 
-export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.now() + KST_MINUTES * MINUTE_MS).getUTCFullYear()): SajuChart {
+export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.now() + KST_MINUTES * MINUTE_MS).getUTCFullYear(), analysisMonth = new Date(Date.now() + KST_MINUTES * MINUTE_MS).getUTCMonth()+1): SajuChart {
   validateBirthInput(input);
   if (!Number.isInteger(analysisYear) || analysisYear < 1801 || analysisYear > 2295) throw new Error('분석 연도는 1801~2295년 범위로 입력해 주세요.');
   const solar = solarDate(input);
@@ -194,6 +195,7 @@ export function calculateSaju(input: BirthInput, analysisYear = new Date(Date.no
       season, timeKnown:input.timeKnown, boundaryUncertain,
       cycles:cycles.map(({startAge,endAge,element}) => ({startAge,endAge,element})),
       annual:annual.map(({year,element}) => ({year,element})), analysisYear,
+      currentMonth:calculateMonthlyContext(dayElement,polarity,analysisYear,analysisMonth),
     },
   };
 }

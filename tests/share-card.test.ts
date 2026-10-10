@@ -72,6 +72,9 @@ describe('sharing privacy and export contract', () => {
     expect(lines.at(-1)).toMatch(/…$/);
     expect(fitCardText('', s => s.length, 80, 3)).toEqual([]);
   });
+  it('keeps Korean word endings together when a word fits on the next line', () => {
+    expect(fitCardText('차분하게 정리하는 편이에요.', s => Array.from(s).length, 13, 3)).toEqual(['차분하게 정리하는','편이에요.']);
+  });
   it('represents actual element ratios, including absent elements, without fabricated values', () => {
     expect(getElementPercentages(chart.elementCounts)).toEqual({ wood: 33, fire: 17, earth: 17, metal: 0, water: 33 });
     expect(getElementPercentages({ wood: 0, fire: 0, earth: 0, metal: 0, water: 0 })).toEqual({ wood: 0, fire: 0, earth: 0, metal: 0, water: 0 });

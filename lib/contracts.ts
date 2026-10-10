@@ -38,6 +38,11 @@ export interface Annual {
   element: Element;
   description: string;
 }
+export interface MonthlyContext {
+  year: number;
+  month: number;
+  periods: { startsAt: string; endsAt: string; element: Element; branchElement: Element; tenGod: string; branchTenGod: string }[];
+}
 /** The only birth-related information allowed to cross the AI boundary. */
 export interface AIProfile {
   version: 1;
@@ -51,6 +56,7 @@ export interface AIProfile {
   cycles: {startAge: number; endAge: number; element: Element}[];
   annual: {year: number; element: Element}[];
   analysisYear: number;
+  currentMonth?: MonthlyContext;
 }
 export interface SajuChart {
   solarDate: string;
@@ -79,6 +85,12 @@ export interface Reading {
   intro: string;
   sections: Record<SectionKey, ReadingSection>;
   source: 'local' | 'ai';
+  monthly?: {
+    headline: string;
+    opportunity: Pick<ReadingSection, 'title'|'body'|'evidence'>;
+    caution: Pick<ReadingSection, 'title'|'body'|'evidence'>;
+    action: Pick<ReadingSection, 'title'|'body'|'evidence'>;
+  };
 }
 export interface Compatibility {
   title: string;
