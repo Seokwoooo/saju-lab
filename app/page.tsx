@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ExternalLink, Leaf, LockKeyhole, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ExternalLink, Leaf, RotateCcw, Sparkles, ChevronDown } from 'lucide-react';
 import type { BirthInput, Reading, SajuChart } from '@/lib/contracts';
 import { calculateSaju } from '@/lib/saju';
 import { requestReading } from '@/lib/client-analysis';
@@ -9,11 +9,10 @@ import { createLocalReading } from '@/lib/local-reading';
 import { GITHUB_URL, X_URL } from '@/lib/site-config';
 import { Brand } from '@/components/saju/brand';
 import { BirthForm } from '@/components/saju/birth-form';
-import { Character, Flower } from '@/components/saju/character';
 import { AnalysisLoading, ReadingHero, ReadingSections } from '@/components/saju/reading-result';
 import { ShareStudio } from '@/components/saju/share-studio';
 import { QuickShareActions } from '@/components/saju/quick-share-actions';
-import { LandingPreview } from '@/components/saju/landing-preview';
+import { SajuHome } from '@/components/saju/saju-home';
 import type { AnalysisStage } from '@/lib/analysis-progress';
 
 type View = 'landing' | 'input' | 'analyzing' | 'result';
@@ -61,25 +60,7 @@ export default function Home() {
   const hasPersonalResult = Boolean(personal && (aiReading || aiError));
   return <div className="saju-app"><a className="skip-link" href="#main-content">본문으로 건너뛰기</a><header className="site-header"><div className="header-inner"><button className="brand" onClick={() => navigate('landing')} aria-label="사주랩 홈"><Brand /></button><nav aria-label="주요 메뉴"><a href="/faq">자주 묻는 질문</a><a className="header-open-source" href={GITHUB_URL} target="_blank" rel="noreferrer">오픈소스<ExternalLink size={13} aria-hidden="true" /></a></nav></div></header>
   <main id="main-content">
-    {view === 'landing' && <>
-      <section className="hero">
-        <div className="hero-copy">
-          <p className="hero-tag"><span /> 100% 무료 / 회원가입 없이</p>
-          <p className="eyebrow hero-eyebrow">생년월일로 만나는 나의 사주풀이</p>
-          <h1 tabIndex={-1}>이번 달,<br /><span className="hero-word">내게 올 기회는?<Flower /></span></h1>
-          <p className="hero-description"><strong>무엇을 조심하고, 어떤 기회를 잡으면 좋을지.</strong><br />언제부터 언제까지인지, 그 이유까지 알려드려요.</p>
-          <ul className="hero-topics" aria-label="사주에서 살펴볼 이야기"><li>이번 달 핵심</li><li>연애와 관계</li><li>일과 돈</li><li>타고난 성격</li></ul>
-          <div className="hero-buttons"><button className="button primary" onClick={() => navigate('input')}>내 사주 무료로 보기<ArrowRight size={19} aria-hidden="true" /></button></div>
-          <p className="hero-small"><LockKeyhole size={13} aria-hidden="true" /> 생년월일 저장 없이, 태어난 시간은 선택</p>
-        </div>
-        <LandingPreview />
-      </section>
-      <div className="hero-bottom"><span>양력, 음력, 윤달 지원</span><span>내 사주에서 알 수 있는 것 <span aria-hidden="true">↓</span></span></div>
-      <section className="welcome-section section-space"><div className="welcome-heading"><p className="eyebrow">내 사주, 어디까지 볼 수 있나요?</p><h2>타고난 나부터,<br />앞으로의 흐름까지.</h2><p>생년월일로 계산한 사주를 바탕으로<br />성격, 사랑, 일과 돈의 이야기를 풀어요.</p></div><div className="welcome-cards"><article className="welcome-card"><span className="welcome-index">01</span><Character element="wood" decorative /><h3>성격과 타고난 기질</h3><p>나는 어떤 강점을 지녔을까요?<br />오행으로 나의 성향과 관계 방식을 살펴봐요.</p></article><article className="welcome-card"><span className="welcome-index">02</span><Character element="fire" decorative /><h3>연애운, 직업운, 재물운</h3><p>사랑하는 방식, 나에게 맞는 일의 환경.<br />돈을 대하는 성향과 조언을 만나보세요.</p></article><article className="welcome-card"><span className="welcome-index">03</span><Character element="water" decorative /><h3>올해 운세와 긴 삶의 흐름</h3><p>올해는 어떤 흐름으로 읽을 수 있을까요?<br />시간, 성별을 알면 전통의 10년 주기도 살펴봐요.</p></article></div></section>
-      <section className="reading-method" aria-labelledby="reading-method-title"><div><p className="eyebrow">사주 계산은 정확하게, 설명은 쉽게</p><h2 id="reading-method-title">태어난 날을 계산하고,<br />그 안의 뜻을 풀어드려요.</h2><p>입력을 마치면 이번 달의 기회와 주의점부터 바로 알려드려요.</p></div><ol><li><span>01</span><div><h3>생년월일 입력</h3><p>생년월일을 입력하고, 아는 경우 출생 시간을 더해요.</p></div></li><li><span>02</span><div><h3>실제 사주 계산과 풀이</h3><p>달력과 절기 기준으로 계산하고, 계산된 사주에 맞춰 이유를 설명해요.</p></div></li><li><span>03</span><div><h3>나만의 사주 카드</h3><p>풀이를 예쁜 카드로 저장하고, 친구와 나눠보세요.</p></div></li></ol></section>
-      <section className="landing-note"><Flower /><div><p className="eyebrow">MADE WITH A LITTLE CURIOSITY</p><h2>누구나 가볍게,<br className="mobile-only" /> 자기 이야기를 만나도록.</h2><p>X 루샨이 만든 무료 오픈소스 프로젝트입니다.<br />이름과 생년월일은 저장하지 않아요.<br />정보가 처리되는 과정도 공개해요.</p><div className="creator-links"><a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub에서 코드 보기<ExternalLink size={14} /></a>{X_URL && <a href={X_URL} target="_blank" rel="noreferrer">루샨lucian의 X<ExternalLink size={14} /></a>}</div></div></section>
-      <section className="last-invitation"><p>내 사주에는 어떤 이야기가 담겼을까요?</p><button className="button primary" onClick={() => navigate('input')}>내 사주 무료로 보기<ArrowRight size={19} /></button><p className="entertainment-note">전통 사주를 바탕으로 한 재미와 자기성찰용 콘텐츠예요.<br />미래를 보장하거나 중요한 결정을 대신하지 않아요.</p></section>
-    </>}
+    {view === 'landing' && <SajuHome onStart={() => navigate('input')} />}
     {view === 'input' && <div className="input-page narrow-page"><button className="back-button" onClick={() => navigate(hasPersonalResult ? 'result' : 'landing')}><ArrowLeft size={17} />{hasPersonalResult ? '결과로 돌아가기' : '홈으로'}</button><div className="input-heading progressive-heading"><p className="eyebrow">나의 사주풀이 시작하기</p><h1 tabIndex={-1}>하나씩, 편하게 알려주세요.</h1><p>모르는 항목은 건너뛰어도 괜찮아요.</p></div><BirthForm key={personal ? 'edit' : 'new'} initial={personal?.input} onSubmit={calculate} error={formError} /></div>}
     {view === 'analyzing' && <AnalysisLoading stage={aiState==='idle'?'preparing':aiState} onCancel={()=>navigate('input')} />}
     {view === 'result' && personal && reading && <div className="result-page wide-page reading-report">
