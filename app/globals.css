@@ -84,11 +84,7 @@
 .progressive-heading h1{font-size:31px;margin-top:13px;line-height:1.5}
 .progressive-heading>p:last-of-type{max-width:none;font-size:14px;margin-top:11px}
 .birth-form.progressive-form{padding:30px 36px 23px}
-.step-topline{display:flex;align-items:center;justify-content:space-between;min-height:24px;font-size:12px;color:#5c6953}
-.step-back{display:inline-flex;align-items:center;gap:5px;padding:0;font-size:12px}
-.step-count{font-variant-numeric:tabular-nums;font-weight:650;color:#39473c}.step-count>span{font-weight:400;color:#697366}
-.step-progress{list-style:none;display:flex;gap:6px;padding:0;margin:15px 0 28px}
-.step-progress li{height:3px;flex:1;border-radius:4px;background:#e8e9df}.step-progress li.reached{background:#72896a}
+.step-back{display:inline-flex;align-items:center;gap:5px;min-height:24px;padding:0;margin-bottom:22px;font-size:12px;color:#5c6953}
 .step-question h2{font-family:"Saju Serif",serif;font-size:29px;letter-spacing:-.045em;line-height:1.4;outline:none}
 .step-question h2:focus-visible{outline:2px solid #72896a;outline-offset:5px}
 .step-recap{font-size:11px;color:#5c6953;margin-bottom:11px;overflow-wrap:anywhere}
@@ -119,7 +115,7 @@
   .input-page:has(.progressive-form){padding-top:17px;padding-bottom:38px}
   .input-heading.progressive-heading{padding:17px 0 24px}
   .progressive-heading h1{font-size:26px;margin-top:12px}.progressive-heading>p:last-of-type{font-size:13px;margin-top:10px;max-width:none}
-  .birth-form.progressive-form{padding:25px 23px 20px}.step-progress{margin-bottom:26px}.step-question h2{font-size:26px}
+  .birth-form.progressive-form{padding:25px 23px 20px}.step-question h2{font-size:26px}
   .step-help{font-size:13px;margin-top:10px}.step-question .step-field{margin-top:24px}.step-field>input{font-size:18px;min-height:55px}.step-field>label{font-size:12px}.step-field .field-hint{font-size:11px}
   .step-choice-pair{gap:10px}.step-option{font-size:15px;padding:16px;min-height:59px}.step-option small{font-size:11px}.step-skip{font-size:12px}.calendar-settings>summary{font-size:12px}.calendar-change{font-size:10px}.step-privacy{font-size:10px}
 }

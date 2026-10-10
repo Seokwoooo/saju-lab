@@ -6,7 +6,6 @@ import type { BirthInput, Gender } from '@/lib/contracts';
 import { validateBirthInput } from '@/lib/saju';
 import { CalendarSettings } from './calendar-settings';
 
-const STEPS = ['이름', '생년월일', '성별', '태어난 시간'] as const;
 const pad = (number: number) => String(number).padStart(2, '0');
 
 export function ProgressiveBirthForm({ initial, onSubmit, error, busy = false }: {
@@ -67,11 +66,7 @@ export function ProgressiveBirthForm({ initial, onSubmit, error, busy = false }:
   const dateLabel = date.length === 8 ? `${date.slice(0, 4)}년 ${+date.slice(4, 6)}월 ${+date.slice(6, 8)}일` : '';
   const inputError = message ? `${id}-error` : undefined;
   return <form className="birth-form paper progressive-form" noValidate onSubmit={event => { event.preventDefault(); if (!busy) next(); }}>
-    <div className="step-topline">
-      {step > 0 ? <button className="step-back" type="button" onClick={() => go(step - 1)}><ArrowLeft size={15} aria-hidden="true" />이전</button> : <span className="step-welcome">나를 만나는 첫걸음</span>}
-      <span className="step-count" aria-label={`총 4단계 중 ${step + 1}단계`}>{step + 1}<span> / 4</span></span>
-    </div>
-    <ol className="step-progress" aria-label="입력 진행"><li aria-current={step === 0 ? 'step' : undefined} className={step >= 0 ? 'reached' : ''}><span className="visually-hidden">이름</span></li>{STEPS.slice(1).map((label, index) => <li key={label} aria-current={step === index + 1 ? 'step' : undefined} className={step >= index + 1 ? 'reached' : ''}><span className="visually-hidden">{label}</span></li>)}</ol>
+    {step > 0 && <button className="step-back" type="button" onClick={() => go(step - 1)}><ArrowLeft size={15} aria-hidden="true" />이전</button>}
     <div className="step-question" key={step}>
       {step > 0 && <p className="step-recap">{name.trim() ? `${name.trim()}님의 사주` : '나의 사주'}{step > 1 && dateLabel ? ` · ${dateLabel}` : ''}</p>}
       <h2 ref={heading} tabIndex={-1}>
