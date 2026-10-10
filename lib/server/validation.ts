@@ -134,7 +134,7 @@ export function validateReading(value:unknown,profile:AIProfile):Reading {
     const pattern=new RegExp(`${god}\\s*(?:은|는|이|가|:)?\\s*(\\d+)\\s*개`,'g');
     for(const match of text.matchAll(pattern)) if((profile.tenGodCounts[god]??0)!==Number(match[1])) throw claimError(match.index,'TEN_GOD_COUNT_MISMATCH','AI 풀이의 십성 수가 계산과 달라요.');
   }
-  const opaque=/리듬|빛깔|기운|에너지|(?:타고난|나의|당신의|서로의)\s*결(?:을|이|은|과|도)/.exec(text);
+  const opaque=/리듬|빛깔|기운|에너지|구체화|실용성|재량|역량|(?:타고난|나의|당신의|서로의)\s*결(?:을|이|은|과|도)/.exec(text);
   if(opaque)throw claimError(opaque.index,'OPAQUE_LANGUAGE');
   for(const match of text.matchAll(/(\d{1,3})\s*[~–-]\s*(\d{1,3})\s*세/g)) if(!profile.cycles.some(cycle=>cycle.startAge===Number(match[1])&&cycle.endAge===Number(match[2]))) throw claimError(match.index,'UNSUPPORTED_AGE_PERIOD');
   return {...reading,source:'ai'} as Reading;

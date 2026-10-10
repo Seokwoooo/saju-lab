@@ -170,7 +170,7 @@ describe('verified provider lanes with bounded attempts',()=>{
 });
 
 describe('AI response boundary',()=>{
-  it.each(['나무의 리듬을 따라가요','서로 다른 빛깔을 만나 보세요','수의 기운을 보완해요','타고난 결을 넓혀 보세요'])('rejects opaque symbolic language: %s',headline=>{
+  it.each(['나무의 리듬을 따라가요','서로 다른 빛깔을 만나 보세요','수의 기운을 보완해요','타고난 결을 넓혀 보세요','실무 계획을 구체화할 기회예요','실용성을 따져 역량을 발휘해요'])('rejects opaque symbolic language: %s',headline=>{
     expect(()=>validateReading({...reading,headline},profile)).toThrow();
   });
   it('rejects a fabricated age period when no cycles were calculated',()=>{
